@@ -159,7 +159,7 @@ input.tpl-switch:checked:after{right:18px}
 .admin-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px dashed var(--line)}
 .admin-card-foot .admin-login{font-size:10.5px;color:var(--sub2)}
 .admin-card-foot .row-actions{gap:6px}
-.admins-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:14px;padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(124,92,255,.11),rgba(57,214,255,.035));box-shadow:var(--shadow-sm)}.admins-hero h2{font-size:18px;margin:0 0 5px}.admins-hero p{font-size:10px;color:var(--sub);margin:0;line-height:1.9}.admins-summary{display:flex;gap:8px;flex-wrap:wrap}.admins-summary .sum{min-width:92px;padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025);text-align:center}.admins-summary b{display:block;font-size:18px}.admins-summary small{display:block;color:var(--sub2);font-size:8px;margin-top:3px}.admin-card{min-height:188px;display:flex;flex-direction:column}.admin-card-top{padding-bottom:13px;border-bottom:1px dashed var(--line)}.admin-id{flex:1}.admin-avatar{position:relative;overflow:hidden}.admin-avatar:after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);transform:translateX(-130%);transition:transform .55s ease}.admin-card:hover .admin-avatar:after{transform:translateX(130%)}.admin-perm-row{min-height:45px;align-content:flex-start}.admin-perm-chip{transition:.15s ease}.admin-perm-chip:hover{border-color:var(--line2);color:var(--text)}.admin-card-foot{margin-top:auto}.admin-login{direction:ltr;text-align:left}.admin-actions-label{font-size:8px;color:var(--sub2);margin-left:5px}@media(max-width:700px){.admins-hero{grid-template-columns:1fr}.admins-summary{justify-content:flex-start}}
+.admins-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:14px;padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(124,92,255,.11),rgba(57,214,255,.035));box-shadow:var(--shadow-sm)}.admins-hero h2{font-size:18px;margin:0 0 5px}.admins-hero p{font-size:10px;color:var(--sub);margin:0;line-height:1.9}.admins-summary{display:flex;gap:8px;flex-wrap:wrap}.admins-summary .sum{min-width:92px;padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025);text-align:center}.admins-summary b{display:block;font-size:18px}.admins-summary small{display:block;color:var(--sub2);font-size:8px;margin-top:3px}.admin-card{min-height:188px;display:flex;flex-direction:column}.admin-card-top{padding-bottom:13px;border-bottom:1px dashed var(--line)}.admin-id{flex:1}.admin-avatar{position:relative;overflow:hidden}.admin-avatar:after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);transform:translateX(-130%);transition:transform .55s ease}.admin-card:hover .admin-avatar:after{transform:translateX(130%)}.admin-perm-row{min-height:45px;align-content:flex-start}.admin-perm-chip{transition:.15s ease}.admin-perm-chip:hover{border-color:var(--line2);color:var(--text)}.admin-card-foot{margin-top:auto}.admin-login{direction:ltr;text-align:left}.admin-actions-label{display:none}.admin-card-foot .row-actions{gap:8px}.admin-card-foot .iconbtn{width:38px;height:34px;border-radius:11px;font-size:15px;background:linear-gradient(145deg,var(--panel2),rgba(124,92,255,.08));border-color:var(--line2);box-shadow:0 7px 18px rgba(0,0,0,.10)}.admin-card-foot .iconbtn.danger{color:var(--bad)}.admin-card-foot .iconbtn.power{color:var(--accent)}.admin-card-foot .iconbtn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(124,92,255,.18)}.feature-lock{text-align:center;padding:16px 6px 8px}.feature-lock-icon{width:68px;height:68px;margin:0 auto 14px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,rgba(124,92,255,.18),rgba(53,214,255,.08));border:1px solid rgba(124,92,255,.28);font-size:28px;color:var(--accent)}.feature-lock h3{margin:0 0 8px;font-size:18px}.feature-lock p{margin:0 auto;max-width:520px;line-height:2;color:var(--sub);font-size:11px}.feature-lock-note{display:inline-flex;gap:7px;align-items:center;margin-top:16px;padding:8px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:9px;color:var(--sub2)}@media(max-width:700px){.admins-hero{grid-template-columns:1fr}.admins-summary{justify-content:flex-start}}
 @media(max-width:700px){.admin-grid{grid-template-columns:1fr}}
 </style></head>
 <body>
@@ -632,7 +632,7 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
 [data-theme="light"] .sidebar{background:linear-gradient(180deg,#ffffff 0%,#f7f8fb 100%);box-shadow:inset -1px 0 rgba(0,0,0,.04),20px 0 50px rgba(30,34,60,.05)}
 .sidebar{width:268px}
 .sidebar-brand{padding:18px 20px 17px}.sidebar-brand img{width:38px;height:38px;border-radius:12px}.sidebar-brand div{font-size:15px}.sidebar-brand small{color:var(--sub2)}
-.tab{padding:11px 14px;border-radius:11px;margin:2px 0}.tab.on{background:linear-gradient(135deg,var(--accent),var(--accent-d));box-shadow:0 10px 25px -10px rgba(124,92,255,.55)}
+.tab{padding:11px 14px;border-radius:11px;margin:2px 0}.tab-locked{opacity:.58}.tab-locked:hover{opacity:.85}.tab.on{background:linear-gradient(135deg,var(--accent),var(--accent-d));box-shadow:0 10px 25px -10px rgba(124,92,255,.55)}
 [data-theme="dark"] .topbar,
 :root:not([data-theme]) .topbar{height:68px;padding:0 26px;background:rgba(13,17,27,.88);backdrop-filter:none;box-shadow:0 1px 0 rgba(255,255,255,.025)}
 [data-theme="light"] .topbar{height:68px;padding:0 26px;background:rgba(255,255,255,.88);backdrop-filter:none;box-shadow:0 1px 0 rgba(30,34,60,.04)}
@@ -675,7 +675,7 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
       <div class="tab" data-pg="links"><i class="ti ti-network"></i><span data-i18n="nav_links">اینباندها</span><span class="bd" id="nb-links">0</span></div>
       <div class="tab" data-pg="categories"><i class="ti ti-category"></i><span data-i18n="nav_categories">دسته‌بندی‌ها</span></div>
       <div class="tab" data-pg="subgroups"><i class="ti ti-folders"></i><span data-i18n="nav_subgroups">گروه‌های ساب</span><span class="bd" id="nb-subs">0</span></div>
-      <div class="tab" data-pg="plans"><i class="ti ti-diamond"></i><span data-i18n="nav_plans">پلن‌های فروش</span></div>
+      <div class="tab tab-locked" data-pg="plans" title="در نسخه‌های بعد فعال می‌شود"><i class="ti ti-lock"></i><span data-i18n="nav_plans">پلن‌های فروش</span><span class="bd">بعداً</span></div>
       <div class="tab" data-pg="reports"><i class="ti ti-chart-histogram"></i><span data-i18n="nav_reports">گزارش‌ها</span></div>
       <div class="tab" data-pg="admins"><i class="ti ti-users-group"></i><span data-i18n="nav_admins">ادمین‌ها</span></div>
       <div class="tab" data-pg="activity"><i class="ti ti-history"></i><span data-i18n="nav_activity">فعالیت‌ها</span></div>
@@ -961,13 +961,14 @@ document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=> gotoPage(t.dataset.pg));
 });
 function gotoPage(pg){
+  if(pg==='plans'){ openDrawer('پلن‌های فروش', `<div class=\"feature-lock\"><div class=\"feature-lock-icon\"><i class=\"ti ti-lock-star\"></i></div><h3>این بخش در حال توسعه است</h3><p>ماژول فروش اشتراک در نسخه‌های بعدی VodiWalker فعال خواهد شد. فعلاً مدیریت سرویس، اینباند، کلاینت و سابسکریپشن بدون وابستگی به فروش در دسترس است.</p><div class=\"feature-lock-note\"><i class=\"ti ti-sparkles\"></i> Coming in a future release</div></div>`, `<button class=\"btn\" style=\"flex:1\" onclick=\"closeDrawer()\"><i class=\"ti ti-check\"></i>متوجه شدم</button>`); return; }
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on', t.dataset.pg===pg));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on', p.id==='pg-'+pg));
   CURRENT_PAGE = pg;
   updatePageTitle(pg);
   document.getElementById('app').classList.remove('sb-open');
   const loaders = {overview:refreshOverview, links:loadLinks, categories:loadCategories, subgroups:loadSubGroups,
-    plans:loadPlans, reports:loadReports, admins:loadAdmins, activity:loadActivity, messages:loadMessages, settings:()=>{loadSettings();loadDiagnostics();}};
+    reports:loadReports, admins:loadAdmins, activity:loadActivity, messages:loadMessages, settings:()=>{loadSettings();loadDiagnostics();}};
   if(loaders[pg]) loaders[pg]();
 }
 
@@ -2004,9 +2005,9 @@ async function loadAdmins(){
             ? (a.permissions||[]).map(p=>`<span class="admin-perm-chip">${ADMIN_PERM_LABELS[p]||p}</span>`).join('')
             : '<span class="admin-perm-chip">بدون دسترسی</span>');
       const actions = isOwner ? '' : `
-        <button class="iconbtn" title="ویرایش" onclick="editAdmin('${a.id}')"><i class="ti ti-edit"></i></button>
-        <button class="iconbtn" title="${a.active?'غیرفعال‌سازی':'فعال‌سازی'}" onclick="toggleAdmin('${a.id}', ${!a.active})"><i class="ti ti-power"></i></button>
-        <button class="iconbtn" title="حذف" onclick="deleteAdmin('${a.id}')"><i class="ti ti-trash" style="color:var(--bad)"></i></button>`;
+        <button class="iconbtn edit" title="ویرایش دسترسی" aria-label="ویرایش دسترسی" onclick="editAdmin('${a.id}')"><i class="ti ti-edit"></i></button>
+        <button class="iconbtn power" title="${a.active?'غیرفعال‌سازی':'فعال‌سازی'}" onclick="toggleAdmin('${a.id}', ${!a.active})"><i class="ti ti-power"></i></button>
+        <button class="iconbtn danger" title="حذف ادمین" aria-label="حذف ادمین" onclick="deleteAdmin('${a.id}')"><i class="ti ti-trash" style="color:var(--bad)"></i></button>`;
       return `
       <div class="admin-card ${isOwner?'is-owner':''} ${a.active?'':'is-inactive'}">
         <div class="admin-card-top">
