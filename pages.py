@@ -159,6 +159,7 @@ input.tpl-switch:checked:after{right:18px}
 .admin-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:12px;border-top:1px dashed var(--line)}
 .admin-card-foot .admin-login{font-size:10.5px;color:var(--sub2)}
 .admin-card-foot .row-actions{gap:6px}
+.admins-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:14px;padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(124,92,255,.11),rgba(57,214,255,.035));box-shadow:var(--shadow-sm)}.admins-hero h2{font-size:18px;margin:0 0 5px}.admins-hero p{font-size:10px;color:var(--sub);margin:0;line-height:1.9}.admins-summary{display:flex;gap:8px;flex-wrap:wrap}.admins-summary .sum{min-width:92px;padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025);text-align:center}.admins-summary b{display:block;font-size:18px}.admins-summary small{display:block;color:var(--sub2);font-size:8px;margin-top:3px}.admin-card{min-height:188px;display:flex;flex-direction:column}.admin-card-top{padding-bottom:13px;border-bottom:1px dashed var(--line)}.admin-id{flex:1}.admin-avatar{position:relative;overflow:hidden}.admin-avatar:after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);transform:translateX(-130%);transition:transform .55s ease}.admin-card:hover .admin-avatar:after{transform:translateX(130%)}.admin-perm-row{min-height:45px;align-content:flex-start}.admin-perm-chip{transition:.15s ease}.admin-perm-chip:hover{border-color:var(--line2);color:var(--text)}.admin-card-foot{margin-top:auto}.admin-login{direction:ltr;text-align:left}.admin-actions-label{font-size:8px;color:var(--sub2);margin-left:5px}@media(max-width:700px){.admins-hero{grid-template-columns:1fr}.admins-summary{justify-content:flex-start}}
 @media(max-width:700px){.admin-grid{grid-template-columns:1fr}}
 </style></head>
 <body>
@@ -795,9 +796,10 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
 
     <!-- ADMINS -->
     <div class="page" id="pg-admins">
-      <div class="pg-head"><div><h1>مدیریت ادمین‌ها</h1><p>حساب‌های دسترسی جانبی به پنل (فقط مالک)</p></div>
+      <div class="pg-head"><div><div class="eyebrow"><span class="live-dot"></span> ACCESS CONTROL</div><h1>مدیریت حرفه‌ای ادمین‌ها</h1><p>کنترل دقیق حساب‌ها، نقش‌ها، دسترسی‌ها و وضعیت ورود به پنل.</p></div>
         <div class="toolbar"><button class="btn primary" onclick="openAdminDrawer()"><i class="ti ti-user-plus"></i>ادمین جدید</button></div>
       </div>
+      <div class="admins-hero"><div><h2>مرکز دسترسی VodiWalker</h2><p>مالک همیشه دسترسی کامل دارد؛ برای ادمین‌های دیگر فقط دسترسی‌های موردنیاز را فعال کن. تغییرات بدون دست‌زدن به ساختار اینباند و سابسکریپشن اعمال می‌شوند.</p></div><div class="admins-summary" id="adminsSummary"><div class="sum"><b id="adminTotal">—</b><small>کل حساب‌ها</small></div><div class="sum"><b id="adminActive">—</b><small>فعال</small></div><div class="sum"><b id="adminOwner">1</b><small>مالک</small></div></div></div>
       <div class="card"><div class="admin-grid" id="adminsBody"></div></div>
     </div>
 
@@ -1398,7 +1400,13 @@ async function refreshTelemetry(){
     $('storageVal').textContent=t.storage.percent+'%'; $('storageSub').textContent=fmtBytes(t.storage.used)+' / '+fmtBytes(t.storage.total);
     $('txRate').textContent=fmtBytes(t.network.tx_bps)+'/s'; $('rxRate').textContent=fmtBytes(t.network.rx_bps)+'/s'; $('liveRate').textContent='↑ '+fmtBytes(t.network.tx_bps)+'/s ↓ '+fmtBytes(t.network.rx_bps)+'/s';
     $('connVal').textContent=t.connections; $('reqVal').textContent=t.requests; $('errVal').textContent=t.errors; $('uptimeVal').textContent=t.uptime; $('coresVal').textContent=t.cpu_cores; $('procRamVal').textContent=fmtBytes(t.process.rss); $('loadVal').textContent=(t.load||[]).join('  '); $('sentTotal').textContent=fmtBytes(t.network.bytes_sent); $('recvTotal').textContent=fmtBytes(t.network.bytes_recv);
-    pushSeries(TEL.cpu,t.cpu);pushSeries(TEL.ram,t.ram.percent);pushSeries(TEL.swap,t.swap.percent);pushSeries(TEL.storage,t.storage.percent);pushSeries(TEL.traffic,(t.network.tx_bps+t.network.rx_bps));pushSeries(TEL.conn,t.connections);
+    const hist=Array.isArray(t.history)?t.history:[];
+    if(hist.length){
+      TEL.cpu=hist.map(x=>Number(x.cpu)||0); TEL.ram=hist.map(x=>Number(x.ram)||0); TEL.swap=hist.map(x=>Number(x.swap)||0); TEL.storage=hist.map(x=>Number(x.storage)||0);
+      TEL.traffic=hist.map(x=>(Number(x.tx_bps)||0)+(Number(x.rx_bps)||0)); TEL.conn=hist.map(x=>Number(x.connections)||0);
+    }else{
+      pushSeries(TEL.cpu,t.cpu);pushSeries(TEL.ram,t.ram.percent);pushSeries(TEL.swap,t.swap.percent);pushSeries(TEL.storage,t.storage.percent);pushSeries(TEL.traffic,(t.network.tx_bps+t.network.rx_bps));pushSeries(TEL.conn,t.connections);
+    }
     drawSpark('cpuSpark',TEL.cpu);drawSpark('ramSpark',TEL.ram);drawSpark('swapSpark',TEL.swap);drawSpark('storageSpark',TEL.storage);drawChart('trafficChart',TEL.traffic);drawChart('connChart',TEL.conn);
   }catch(e){}
 }
@@ -1982,7 +1990,11 @@ async function loadAdmins(){
   try{
     const res = await api('/api/admins');
     ADMIN_CACHE = res.admins || [];
-    $('adminsBody').innerHTML = (res.admins||[]).map(a=>{
+    const adminRows = res.admins || [];
+    const activeAdmins = adminRows.filter(a=>a.active).length;
+    if($('adminTotal')) $('adminTotal').textContent = adminRows.length;
+    if($('adminActive')) $('adminActive').textContent = activeAdmins;
+    $('adminsBody').innerHTML = adminRows.map(a=>{
       const isOwner = a.role==='owner';
       const initials = (a.username||'?').replace(/[^A-Za-z0-9آ-ی]/g,'').slice(0,2).toUpperCase() || '?';
       const lastLogin = a.last_login_at ? a.last_login_at.slice(0,16).replace('T',' ') : 'بدون ورود';
@@ -2009,8 +2021,8 @@ async function loadAdmins(){
         </div>
         <div class="admin-perm-row">${chips}</div>
         <div class="admin-card-foot">
-          <span class="admin-login mono" title="آخرین ورود">${escapeHtml(lastLogin)}</span>
-          <div class="row-actions">${actions}</div>
+          <span class="admin-login mono" title="آخرین ورود"><i class="ti ti-clock"></i> ${escapeHtml(lastLogin)}</span>
+          <div class="row-actions"><span class="admin-actions-label">عملیات</span>${actions}</div>
         </div>
       </div>`;
     }).join('');
