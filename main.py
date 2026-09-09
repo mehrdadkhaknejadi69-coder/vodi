@@ -184,15 +184,7 @@ CONFIG = {
         "RAILWAY_PUBLIC_DOMAIN",
         "localhost",
     ),
-    # آدرس عمومی ثابت پنل (مثلاً https://panel.example.com) — اگر ست بشه (از تنظیمات
-    # پنل یا env)، به جای Host header ناپایدار درخواست‌ها برای ساخت لینک ساب استفاده می‌شه.
-    # این رفع اصلیِ باگ «لینک ساب باز نمی‌شه» است: قبلاً هر درخواست ورودی (حتی یک
-    # هلث‌چک یا ربات مانیتورینگ با Host نادرست) می‌تونست CONFIG["host"] سراسری رو
-    # خراب کنه و لینک‌های بعدی رو با دامنه/آی‌پی اشتباه بسازه.
-    "public_base_url": os.environ.get("PUBLIC_BASE_URL", "").strip(),
-    # آدرس/پورت عمومی TCP برای لینک‌های vless-tcp — چون این‌ها روی یک پورت جدا
-    # (tcp_relay.py) سرو می‌شن که آدرس عمومیش با آدرس پنل فرق داره (مخصوصاً روی
-    # Railway که برای TCP باید از قابلیت جداگانه‌ی «TCP Proxy» استفاده بشه).
+   
     "tcp_public_host": os.environ.get("TCP_PUBLIC_HOST", "").strip(),
     "tcp_public_port": os.environ.get("TCP_PUBLIC_PORT", "").strip(),
 }
@@ -314,6 +306,20 @@ PROTOCOL_ALIASES = {
 
 DEFAULT_PROTOCOL = "vless-ws"
 
+# نگاشت هر پروتکل غیر-دستی (manual) به Network/Security واقعی‌ای که در لینک
+# نهایی (generate_vless_link) استفاده می‌شود. این فقط برای نمایش صحیح در پنل
+# است (تگ‌های "ws/tls" و ...)؛ چون قبلاً این مقادیر همیشه روی مقدار پیش‌فرض
+# فیلدهای دستی (tcp/none) می‌افتادند، حتی برای پروتکل‌هایی که واقعاً ws+tls بودند.
+PROTOCOL_NETWORK_SECURITY = {
+    "vless-ws": ("ws", "tls"),
+    "vless-tcp": ("tcp", "none"),
+    "xhttp-packet-up": ("xhttp", "tls"),
+    "xhttp-stream-up": ("xhttp", "tls"),
+    "xhttp-stream-one": ("xhttp", "tls"),
+    "vmess-ws": ("ws", "tls"),
+    "trojan-ws": ("ws", "tls"),
+}
+
 FINGERPRINTS = (
     "chrome",
     "firefox",
@@ -346,10 +352,7 @@ DEFAULT_SPEED_LIMIT = 0
 # ============================================================
 # MANUAL PROTOCOL BUILDER (پروتکل دستی — مثل پنل‌های 3x-ui/Sanaei)
 # ============================================================
-# این‌ها فقط برای حالت protocol == "manual" استفاده می‌شن که در آن‌ها ادمین
-# خودش شبکه (Network) و امنیت (Security) و بقیه‌ی فیلدها رو دستی وارد می‌کنه.
-# این حالت به‌صورت جدا از PROTOCOLS قدیمی نگه داشته شده تا منوی ربات فروش
-# (که از PROTOCOLS استفاده می‌کند) دست‌نخورده و برای مشتری‌ها ساده بماند.
+
 
 MANUAL_BASE_PROTOCOLS = ("vless", "vmess", "trojan", "shadowsocks")
 
@@ -1459,6 +1462,13 @@ def get_link_info(
     show_vless = len(clean_ips) <= 1 and cfg_count <= 1
     cat = CATEGORIES.get(str(link.get("category_id") or "0")) or {}
     protocol = normalize_protocol(link.get("protocol"))
+    if protocol == "manual":
+        display_network = normalize_network(link.get("network"))
+        display_security = normalize_security(link.get("security"))
+    else:
+        display_network, display_security = PROTOCOL_NETWORK_SECURITY.get(
+            protocol, ("tcp", "none")
+        )
     manual_network = normalize_network(link.get("network"))
     manual_security = normalize_security(link.get("security"))
     manual_mode = normalize_xhttp_mode(link.get("xhttp_mode"))
@@ -1481,8 +1491,8 @@ def get_link_info(
         "protocol": link.get("protocol", DEFAULT_PROTOCOL),
         "protocol_display": protocol_display_label(link),
         "base_protocol": normalize_base_protocol(link.get("base_protocol")),
-        "network": normalize_network(link.get("network")),
-        "security": normalize_security(link.get("security")),
+        "network": display_network,
+        "security": display_security,
         "manual_live": manual_live,
         "live_status": live_status,
         "live_reason": ("این پروتکل توسط هسته فعلی سرو می‌شود." if live_status == "live" else "فقط لینک ساخته می‌شود؛ برای اجرای واقعی این ترکیب به Xray-core/Inbound خارجی نیاز است."),
@@ -4216,6 +4226,73 @@ async def reset_link_usage(
         "ok": True,
         "uuid": uid,
         "used_bytes": 0,
+    }
+
+
+# ============================================================
+# REGENERATE / SWAP LINK (تعویض لینک — UUID جدید، همان تنظیمات)
+# ============================================================
+# لینک قدیمی بلافاصله از کار می‌افتد (چون UUID عوض شده) و یک UUID جدید با
+# همان تنظیمات (حجم، انقضا، دسته، پروتکل، محدودیت‌ها و ...) جایگزینش می‌شود.
+# برای کلاینت‌های فرزند یک اینباند هم پشتیبانی می‌شود.
+
+@app.post("/api/links/{uid}/regenerate")
+async def regenerate_link(
+    uid: str,
+    request: Request,
+    _=Depends(require_auth),
+):
+    async with LINKS_LOCK:
+        old_link = LINKS.get(uid)
+        if not old_link:
+            raise HTTPException(status_code=404, detail="link not found")
+
+        new_uid = generate_uuid()
+        while new_uid in LINKS:
+            new_uid = generate_uuid()
+
+        new_link = dict(old_link)
+        # مصرف قبلی حفظ می‌شود (این فقط تعویض کلید/لینک است، نه ریست حجم)
+        LINKS[new_uid] = new_link
+        del LINKS[uid]
+
+        parent_id = old_link.get("parent_inbound_id")
+        sub_id = old_link.get("sub_id")
+        label = old_link.get("label", uid)
+
+        # اگر این اینباند بود، فرزندانش را به UUID جدید مادر وصل کن
+        updated_children = 0
+        for child in LINKS.values():
+            if child.get("parent_inbound_id") == uid:
+                child["parent_inbound_id"] = new_uid
+                updated_children += 1
+
+    if sub_id:
+        async with SUBS_LOCK:
+            sub = SUBS.get(sub_id)
+            if sub:
+                ids = sub.get("link_ids", [])
+                if uid in ids:
+                    ids[ids.index(uid)] = new_uid
+
+    await save_state()
+
+    log_activity(
+        "link",
+        f"لینک «{label}» تعویض شد (UUID جدید صادر شد)",
+        "warn",
+    )
+
+    host = get_host(request)
+    async with LINKS_LOCK:
+        refreshed = LINKS.get(new_uid)
+
+    return {
+        **(get_link_info(refreshed, new_uid, host) if refreshed else {}),
+        "ok": True,
+        "old_uuid": uid,
+        "uuid": new_uid,
+        "updated_children": updated_children,
     }
 
 
