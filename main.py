@@ -4602,6 +4602,12 @@ async def subscription_portal(uuid: str, request: Request):
         days_text = f"{days_left} روز مانده"; days_class = ""
     support_url = f"https://t.me/{str(SUPPORT_USERNAME).lstrip('@')}"
     plan_badge = str(link.get("category_name") or "")
+    initial_active_ips = {
+        str(item.get("ip") or "").strip()
+        for item in connections.values()
+        if item.get("uuid") == uuid and str(item.get("ip") or "").strip()
+    }
+    initial_active_connections = len(initial_active_ips)
     safe={"label":escape_html(label),"protocol":escape_html(protocol),"raw":escape_html(raw_url),"info":escape_html(info_url),"uuid":escape_html(uuid),"remaining":escape_html(remaining),"expires":escape_html(expires[:19]),"status":"فعال" if active else "غیرفعال","pct":str(pct),"pctclass":pct_class,"ringoffset":str(ring_offset),"used":escape_html(fmt_bytes(used)),"limit":escape_html(fmt_bytes(limit) if limit else "نامحدود"),"ip":str(ip_limit or 0),"conn":str(conn_limit or 0),"days":escape_html(days_text),"daysclass":days_class,"support":escape_html(support_url),"plan":escape_html(plan_badge) if plan_badge else ""}
     qr=quote(raw_url,safe="")
     html = r"""<!doctype html><html lang="fa" dir="rtl"><head>
@@ -4780,7 +4786,7 @@ async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{c
     qa_hiddify = f"hiddify://import/{qr}"
     qa_singbox = f"sing-box://import-remote-profile?url={qr}"
     qa_streisand = f"streisand://import/{qr}"
-    replacements={"__LABEL__":safe["label"],"__STATUS__":safe["status"],"__PROTOCOL__":safe["protocol"],"__IP__":safe["ip"],"__CONN__":safe["conn"],"__UUID_SHORT__":escape_html(uuid[:18])+"…","__INFO__":safe["info"],"__RAW__":safe["raw"],"__RAW_JS__":repr(raw_url),"__QR__":qr,"__PCT__":safe["pct"],"__PCTCLASS__":safe["pctclass"],"__USED__":safe["used"],"__LIMIT__":safe["limit"],"__REMAINING__":safe["remaining"],"__EXPIRES__":safe["expires"],"__UUID__":escape_html(uuid),"__NETWORK__":escape_html(str(link.get("network") or "tcp")),"__SECURITY__":escape_html(str(link.get("security") or "none")),"__ADDRESS__":escape_html(str(link.get("address") or host)),"__DAYS__":safe["days"],"__DAYSCLASS__":safe["daysclass"],"__SUPPORT__":safe["support"],"__PLAN_CHIP__":plan_chip,"__QA_V2RAYNG__":escape_html(qa_v2rayng),"__QA_HIDDIFY__":escape_html(qa_hiddify),"__QA_SINGBOX__":escape_html(qa_singbox),"__QA_STREISAND__":escape_html(qa_streisand)}
+    replacements={"__LABEL__":safe["label"],"__STATUS__":safe["status"],"__PROTOCOL__":safe["protocol"],"__IP__":safe["ip"],"__CONN__":safe["conn"],"__UUID_SHORT__":escape_html(uuid[:18])+"…","__INFO__":safe["info"],"__RAW__":safe["raw"],"__RAW_JS__":repr(raw_url),"__QR__":qr,"__PCT__":safe["pct"],"__PCTCLASS__":safe["pctclass"],"__USED__":safe["used"],"__LIMIT__":safe["limit"],"__REMAINING__":safe["remaining"],"__EXPIRES__":safe["expires"],"__UUID__":escape_html(uuid),"__NETWORK__":escape_html(str(link.get("network") or "tcp")),"__SECURITY__":escape_html(str(link.get("security") or "none")),"__ADDRESS__":escape_html(str(link.get("address") or host)),"__DAYS__":safe["days"],"__DAYSCLASS__":safe["daysclass"],"__SUPPORT__":safe["support"],"__PLAN_CHIP__":plan_chip,"__ACTIVE_CONN__":str(initial_active_connections),"__CONN_LIMIT__":str(conn_limit) if conn_limit else "نامحدود","__QA_V2RAYNG__":escape_html(qa_v2rayng),"__QA_HIDDIFY__":escape_html(qa_hiddify),"__QA_SINGBOX__":escape_html(qa_singbox),"__QA_STREISAND__":escape_html(qa_streisand)}
     for k,v in replacements.items(): html=html.replace(k,v)
     return HTMLResponse(html)
 
@@ -4794,7 +4800,16 @@ async def subscription_api(uuid: str):
     limit = int(link.get("limit_bytes", 0) or 0)
     # Live connections are calculated from the actual relay connection registry.
     # This is intentionally not cached so the customer sees the current state.
-    active_connections = sum(1 for item in connections.values() if item.get("uuid") == uuid)
+    # «نفر متصل» = IPهای یکتای آنلاین، نه تعداد socket/session.
+    # یک دستگاه ممکن است هم‌زمان چند WebSocket باز کند؛ شمردن sessionها باعث
+    # نمایش اعداد غیرواقعی مثل 18 نفر برای یک کاربر می‌شد.
+    active_ips = {
+        str(item.get("ip") or "").strip()
+        for item in connections.values()
+        if item.get("uuid") == uuid and str(item.get("ip") or "").strip()
+    }
+    active_connections = len(active_ips)
+    active_sessions = sum(1 for item in connections.values() if item.get("uuid") == uuid)
     now_ts = time.time()
     history = SUB_USAGE_HISTORY[uuid]
     # Keep a sample only when usage changes or enough time has elapsed. This makes
@@ -4808,6 +4823,8 @@ async def subscription_api(uuid: str):
         "usage_history": list(history),
         "traffic_remaining": max(0, limit-used) if limit else None,
         "active_connections": active_connections,
+        "active_sessions": active_sessions,
+        "active_ips": sorted(active_ips),
         "connection_limit": int(link.get("connection_limit", 0) or 0),
         "expires_at": link.get("expires_at"), "ip_limit": int(link.get("ip_limit", 0) or 0),
         "config_count": max(1, min(40, int(link.get("config_count") or 1))),
@@ -5534,7 +5551,8 @@ async def public_sub_data(
 
     links_out = []
 
-    active_connections = 0
+    active_ip_set = set()
+    active_session_count = 0
 
     for link_id in sub.get(
         "link_ids",
@@ -5552,15 +5570,14 @@ async def public_sub_data(
             link
         )
 
-        connection_count = sum(
-            1
+        link_ips = {
+            str(item.get("ip") or "").strip()
             for item in connections.values()
-            if item.get("uuid") == link_id
-        )
-
-        active_connections += (
-            connection_count
-        )
+            if item.get("uuid") == link_id and str(item.get("ip") or "").strip()
+        }
+        connection_count = len(link_ips)
+        active_session_count += sum(1 for item in connections.values() if item.get("uuid") == link_id)
+        active_ip_set.update(link_ips)
 
         links_out.append(
             {
@@ -5686,7 +5703,13 @@ async def public_sub_data(
             ),
 
         "active_connections":
-            active_connections,
+            len(active_ip_set),
+
+        "active_sessions":
+            active_session_count,
+
+        "active_ips":
+            sorted(active_ip_set),
 
         "total_used_fmt":
             fmt_bytes(
