@@ -196,6 +196,8 @@ CONFIG = {
 
 LINKS: dict = {}
 SUBS: dict = {}
+# Per-subscription live usage samples. Values come from the real link used_bytes field.
+SUB_USAGE_HISTORY = defaultdict(lambda: deque(maxlen=96))
 SESSIONS: dict = {}
 connections: dict = {}
 CATEGORIES: dict = {}
@@ -254,6 +256,9 @@ error_logs = deque(maxlen=100)
 activity_logs = deque(maxlen=250)
 
 hourly_traffic = defaultdict(int)
+# Real server telemetry samples used by the dashboard charts.
+# Samples are collected from psutil; no placeholder/synthetic values are generated.
+TELEMETRY_HISTORY = deque(maxlen=90)
 
 http_client: httpx.AsyncClient | None = None
 
@@ -2557,6 +2562,17 @@ async def api_telemetry(_=Depends(require_auth)):
         tx_rate = max(0, net.bytes_sent - int(prev.get("tx", net.bytes_sent))) / dt
         _telemetry_prev = {"ts": now, "rx": net.bytes_recv, "tx": net.bytes_sent}
     process = psutil.Process(os.getpid())
+    sample = {
+        "ts": datetime.now().isoformat(),
+        "cpu": _pct(cpu),
+        "ram": _pct(vm.percent),
+        "swap": _pct(swap.percent),
+        "storage": _pct(disk.percent),
+        "rx_bps": int(rx_rate),
+        "tx_bps": int(tx_rate),
+        "connections": len(connections),
+    }
+    TELEMETRY_HISTORY.append(sample)
     return {
         "ok": True,
         "cpu": _pct(cpu),
@@ -2573,6 +2589,7 @@ async def api_telemetry(_=Depends(require_auth)):
         "load": load,
         "process": {"rss": process.memory_info().rss, "cpu": _pct(process.cpu_percent(interval=None))},
         "bot_running": bool(_bot_settings_snapshot().get("running")),
+        "history": list(TELEMETRY_HISTORY),
     }
 
 
@@ -4624,17 +4641,7 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 .badge-days{display:inline-flex;padding:5px 10px;border-radius:99px;font-size:8.5px;font-weight:800;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
 .badge-days.warn{background:rgba(245,165,36,.14);color:var(--warn);border-color:transparent}
 .badge-days.crit{background:rgba(242,73,85,.14);color:var(--bad);border-color:transparent}
-.summary-ring{position:relative;z-index:1;text-align:center;flex-shrink:0}
-.ring{width:106px;height:106px;position:relative;margin:auto}
-.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
-.ring-track{fill:none;stroke:var(--panel2);stroke-width:9}
-.ring-bar{fill:none;stroke:url(#ringGrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:263.89;transition:stroke-dashoffset .6s ease;filter:drop-shadow(0 0 6px rgba(53,214,255,.35))}
-.ring.warn .ring-bar{stroke:var(--warn);filter:drop-shadow(0 0 6px rgba(245,165,36,.35))}
-.ring.crit .ring-bar{stroke:var(--bad);filter:drop-shadow(0 0 6px rgba(242,73,85,.35))}
-.ring-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
-.ring-center strong{font-size:18px}
-.ring-center small{display:block;color:var(--soft);font-size:7px;margin-top:2px}
-.summary-ring small.upd{display:block;margin-top:8px;color:var(--soft2,var(--soft));font-size:8px}
+.summary-usage{position:relative;z-index:1;min-width:190px;text-align:right}.summary-usage .usage-pct{font-size:30px;font-weight:950;letter-spacing:-.05em;background:linear-gradient(135deg,var(--text),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}.summary-usage small{display:block;color:var(--soft);font-size:8px;margin-top:3px}
 .tabs{position:relative;z-index:1;display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:16px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab-btn{padding:10px 16px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font:800 11px Vazirmatn;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s}
@@ -4669,6 +4676,7 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 .progress i.warn{background:linear-gradient(90deg,#f5a524,#f59e0b)}
 .progress i.crit{background:linear-gradient(90deg,#f24955,#ef4444)}
 .usage-note{color:var(--soft);font-size:8.5px}
+.usage-chart-card{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(139,92,246,.045),rgba(255,255,255,.012));overflow:hidden}.chart-head{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border-bottom:1px solid var(--line);font-size:9px;color:var(--muted)}.chart-head span:last-child{color:var(--soft);font-size:8px}.usage-chart-card svg{display:block;width:100%;height:230px}.usage-chart-card .gridline{stroke:var(--line);stroke-width:1}.usage-chart-card .area{fill:url(#usageArea)}.usage-chart-card .line{fill:none;stroke:var(--accent);stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}.usage-chart-card .point{fill:var(--cyan);stroke:var(--panel);stroke-width:2}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
 .stat{padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--panel2)}
 .stat small{display:block;color:var(--soft);font-size:8px;margin-bottom:5px}
@@ -4702,7 +4710,7 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 @media(max-width:820px),(pointer:coarse){.bg-orb{animation:none!important;filter:blur(24px)}}
 </style></head><body><svg width="0" height="0" style="position:absolute"><defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#35d6ff"/></linearGradient></defs></svg><div class="bg-orb bg-orb1"></div><div class="bg-orb bg-orb2"></div><main class="wrap">
 <div class="nav"><div class="brand"><div class="mark">✦</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div class="nav-right"><div class="live-pill"><span class="dot"></span><span id="status">__STATUS__</span></div><button class="theme-btn" onclick="toggleTheme()" title="تغییر پوسته"><i id="themeIcon" class="ti ti-moon"></i></button></div></div>
-<section class="summary"><div><div class="eyebrow">SECURE PERSONAL ACCESS</div><h1>__LABEL__</h1><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span>__PLAN_CHIP__<span class="chip">IP Limit <b>__IP__</b></span><span class="chip">Connection <b>__CONN__</b></span><span class="badge-days __DAYSCLASS__" id="daysBadge">__DAYS__</span></div></div><div class="summary-ring"><div class="ring __PCTCLASS__" id="ringBox"><svg viewBox="0 0 100 100"><circle class="ring-track" cx="50" cy="50" r="42"></circle><circle class="ring-bar" id="ringBar" cx="50" cy="50" r="42" style="stroke-dashoffset:__RINGOFFSET__"></circle></svg><div class="ring-center"><strong id="pct">__PCT__%</strong><small>مصرف</small></div></div><small class="upd" id="updated">—</small></div></section>
+<section class="summary"><div><div class="eyebrow">SECURE PERSONAL ACCESS</div><h1>__LABEL__</h1><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span>__PLAN_CHIP__<span class="chip">IP Limit <b>__IP__</b></span><span class="chip">Connection <b>__CONN__</b></span><span class="badge-days __DAYSCLASS__" id="daysBadge">__DAYS__</span></div></div><div class="summary-usage"><div class="usage-pct" id="pct">__PCT__%</div><small>درصد مصرف فعلی · <span id="updated">در حال بروزرسانی</span></small></div></section>
 <nav class="tabs">
   <button class="tab-btn on" data-tab="connect" onclick="showTab('connect')"><i class="ti ti-link"></i>اتصال</button>
   <button class="tab-btn" data-tab="usage" onclick="showTab('usage')"><i class="ti ti-chart-donut"></i>مصرف و جزئیات</button>
@@ -4724,14 +4732,11 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
   <div class="trust-row"><span>🔒 رمزنگاری TLS/Reality</span><span>⚡ لتنسی پایین</span><span>🛡️ پایش امنیتی ۲۴/۷</span><a class="qa-btn" style="text-decoration:none" href="__SUPPORT__" target="_blank">💬 پشتیبانی</a><button class="qa-btn" onclick="shareLink()">🔗 اشتراک‌گذاری</button></div>
 </section>
 <section class="tab-panel" id="tab-usage">
-  <div class="panel"><div class="phead"><div><b>مصرف و ظرفیت</b><small>Live subscription telemetry</small></div></div><div class="pbody">
-    <div class="usage-top"><div class="usage-number" id="traffic">__USED__ / __LIMIT__</div></div>
+  <div class="panel"><div class="phead"><div><b>مصرف و ظرفیت</b><small>نمودار بر اساس داده واقعی سابسکریپشن</small></div><span class="live-pill"><span class="dot"></span> LIVE</span></div><div class="pbody">
+    <div class="usage-top"><div><div class="usage-number" id="traffic">__USED__ / __LIMIT__</div><div class="usage-note">باقی‌مانده: <b id="remaining">__REMAINING__</b></div></div><div style="text-align:left"><small style="display:block;color:var(--soft);font-size:8px">وضعیت</small><b id="liveState">__STATUS__</b></div></div>
     <div class="progress" id="progressWrap"><i id="progress" class="__PCTCLASS__"></i></div>
-    <div class="usage-note">باقی‌مانده: <b id="remaining">__REMAINING__</b></div>
-    <div class="stats"><div class="stat"><small>وضعیت</small><b id="liveState">__STATUS__</b></div><div class="stat"><small>انقضا</small><b id="expiry">__EXPIRES__</b></div><div class="stat"><small>IP Limit</small><b>__IP__</b></div><div class="stat"><small>Connection</small><b>__CONN__</b></div></div>
-  </div></div>
-  <div class="panel"><div class="phead"><div><b>پروفایل اتصال</b><small>روی هر کارت بزن تا کپی بشه</small></div></div><div class="pbody">
-    <div class="info-grid"><div class="fact" onclick="copyFact(this)"><small>Protocol</small><b dir="ltr">__PROTOCOL__</b><i class="fact-copy">⧉</i></div><div class="fact" onclick="copyFact(this)"><small>Network</small><b dir="ltr">__NETWORK__</b><i class="fact-copy">⧉</i></div><div class="fact" onclick="copyFact(this)"><small>Security</small><b dir="ltr">__SECURITY__</b><i class="fact-copy">⧉</i></div><div class="fact" onclick="copyFact(this)"><small>Address</small><b dir="ltr">__ADDRESS__</b><i class="fact-copy">⧉</i></div></div>
+    <div class="usage-chart-card"><div class="chart-head"><span>روند مصرف واقعی</span><span id="usageChartMeta">در انتظار داده</span></div><svg id="usageChart" viewBox="0 0 900 260" preserveAspectRatio="none" aria-label="نمودار مصرف"></svg></div>
+    <div class="stats"><div class="stat"><small>انقضا</small><b id="expiry">__EXPIRES__</b></div><div class="stat"><small>IP Limit</small><b>__IP__</b></div><div class="stat"><small>Connection</small><b>__CONN__</b></div><div class="stat"><small>آخرین بروزرسانی</small><b id="updated2">—</b></div></div>
   </div></div>
 </section>
 <section class="tab-panel" id="tab-guide">
@@ -4753,14 +4758,14 @@ function toggleTheme(){const html=document.documentElement;const isLight=html.ge
 function updateThemeIcon(){const isLight=document.documentElement.getAttribute('data-theme')==='light';const ic=document.getElementById('themeIcon');if(ic)ic.className=isLight?'ti ti-sun':'ti ti-moon'}
 updateThemeIcon();
 try{const savedTab=sessionStorage.getItem('vw_sub_tab');if(savedTab)showTab(savedTab)}catch(e){}
-const RING_CIRC=263.89;
-async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*100)):0,cls=pctCls(p);document.getElementById('traffic').textContent=lim?fmt(used)+' / '+fmt(lim):fmt(used)+' / نامحدود';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';const pr=document.getElementById('progress');pr.style.width=p+'%';pr.className=cls;const rb=document.getElementById('ringBox');if(rb)rb.className='ring '+cls;const rBar=document.getElementById('ringBar');if(rBar)rBar.style.strokeDashoffset=(RING_CIRC*(1-p/100)).toFixed(2);document.getElementById('pct').textContent=p+'%';document.getElementById('liveState').textContent=d.active?'فعال':'غیرفعال';document.getElementById('status').textContent=d.active?'فعال':'غیرفعال';document.getElementById('updated').textContent='بروزرسانی '+new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}catch(e){}}refresh();setInterval(()=>{if(!document.hidden)refresh()},15000)</script></body></html>"""
+function drawUsageChart(history,limit){const el=document.getElementById('usageChart');if(!el)return;const rows=(Array.isArray(history)?history:[]).filter(x=>Number.isFinite(Number(x.used)));if(!rows.length){el.innerHTML='<text x="450" y="130" text-anchor="middle" fill="currentColor" opacity=".45" font-size="14">هنوز داده‌ای برای رسم نمودار ثبت نشده</text>';document.getElementById('usageChartMeta').textContent='بدون داده';return}const w=900,h=260,pad=24;const vals=rows.map(x=>Math.max(0,Number(x.used)||0));const max=Math.max(limit||0,...vals,1);const pts=vals.map((v,i)=>{const x=pad+(i/Math.max(1,vals.length-1))*(w-pad*2);const y=h-pad-(v/max)*(h-pad*2);return [x,y]});const line=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');const area=`${pad},${h-pad} ${line} ${w-pad},${h-pad}`;const last=pts[pts.length-1];const labels=rows.map(x=>new Date(Number(x.ts)*1000).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}));el.innerHTML=`<defs><linearGradient id="usageArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><line class="gridline" x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}"/><line class="gridline" x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}"/><polygon class="area" points="${area}"/><polyline class="line" points="${line}"/><circle class="point" cx="${last[0]}" cy="${last[1]}" r="5"/>`;document.getElementById('usageChartMeta').textContent=`${rows.length} نقطه · آخرین ${labels[labels.length-1]}`}
+async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*100)):0,cls=pctCls(p);document.getElementById('traffic').textContent=lim?fmt(used)+' / '+fmt(lim):fmt(used)+' / نامحدود';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';const pr=document.getElementById('progress');pr.style.width=p+'%';pr.className=cls;document.getElementById('pct').textContent=p+'%';document.getElementById('liveState').textContent=d.active?'فعال':'غیرفعال';const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;document.getElementById('updated2').textContent=now;drawUsageChart(d.usage_history,lim)}catch(e){}}refresh();setInterval(()=>{if(!document.hidden)refresh()},15000)</script></body></html>"""
     plan_chip = f'<span class="chip">پلن <b>{safe["plan"]}</b></span>' if safe["plan"] else ""
     qa_v2rayng = f"v2rayng://install-sub?url={qr}"
     qa_hiddify = f"hiddify://import/{qr}"
     qa_singbox = f"sing-box://import-remote-profile?url={qr}"
     qa_streisand = f"streisand://import/{qr}"
-    replacements={"__LABEL__":safe["label"],"__STATUS__":safe["status"],"__PROTOCOL__":safe["protocol"],"__IP__":safe["ip"],"__CONN__":safe["conn"],"__UUID_SHORT__":escape_html(uuid[:18])+"…","__INFO__":safe["info"],"__RAW__":safe["raw"],"__RAW_JS__":repr(raw_url),"__QR__":qr,"__PCT__":safe["pct"],"__PCTCLASS__":safe["pctclass"],"__RINGOFFSET__":safe["ringoffset"],"__USED__":safe["used"],"__LIMIT__":safe["limit"],"__REMAINING__":safe["remaining"],"__EXPIRES__":safe["expires"],"__UUID__":escape_html(uuid),"__NETWORK__":escape_html(str(link.get("network") or "tcp")),"__SECURITY__":escape_html(str(link.get("security") or "none")),"__ADDRESS__":escape_html(str(link.get("address") or host)),"__DAYS__":safe["days"],"__DAYSCLASS__":safe["daysclass"],"__SUPPORT__":safe["support"],"__PLAN_CHIP__":plan_chip,"__QA_V2RAYNG__":escape_html(qa_v2rayng),"__QA_HIDDIFY__":escape_html(qa_hiddify),"__QA_SINGBOX__":escape_html(qa_singbox),"__QA_STREISAND__":escape_html(qa_streisand)}
+    replacements={"__LABEL__":safe["label"],"__STATUS__":safe["status"],"__PROTOCOL__":safe["protocol"],"__IP__":safe["ip"],"__CONN__":safe["conn"],"__UUID_SHORT__":escape_html(uuid[:18])+"…","__INFO__":safe["info"],"__RAW__":safe["raw"],"__RAW_JS__":repr(raw_url),"__QR__":qr,"__PCT__":safe["pct"],"__PCTCLASS__":safe["pctclass"],"__USED__":safe["used"],"__LIMIT__":safe["limit"],"__REMAINING__":safe["remaining"],"__EXPIRES__":safe["expires"],"__UUID__":escape_html(uuid),"__NETWORK__":escape_html(str(link.get("network") or "tcp")),"__SECURITY__":escape_html(str(link.get("security") or "none")),"__ADDRESS__":escape_html(str(link.get("address") or host)),"__DAYS__":safe["days"],"__DAYSCLASS__":safe["daysclass"],"__SUPPORT__":safe["support"],"__PLAN_CHIP__":plan_chip,"__QA_V2RAYNG__":escape_html(qa_v2rayng),"__QA_HIDDIFY__":escape_html(qa_hiddify),"__QA_SINGBOX__":escape_html(qa_singbox),"__QA_STREISAND__":escape_html(qa_streisand)}
     for k,v in replacements.items(): html=html.replace(k,v)
     return HTMLResponse(html)
 
@@ -4772,10 +4777,17 @@ async def subscription_api(uuid: str):
         raise HTTPException(status_code=404, detail="not found")
     used = int(link.get("used_bytes", 0) or 0)
     limit = int(link.get("limit_bytes", 0) or 0)
+    now_ts = time.time()
+    history = SUB_USAGE_HISTORY[uuid]
+    # Keep a sample only when usage changes or enough time has elapsed. This makes
+    # the customer chart reflect actual backend measurements without noisy duplicates.
+    if not history or history[-1]["used"] != used or now_ts - history[-1]["ts"] >= 60:
+        history.append({"ts": now_ts, "used": used, "limit": limit})
     return {
         "service": APP_NAME, "uuid": uuid, "label": link.get("label"),
         "active": bool(link.get("active", True)), "protocol": link.get("protocol"),
         "traffic_used": used, "traffic_limit": limit,
+        "usage_history": list(history),
         "traffic_remaining": max(0, limit-used) if limit else None,
         "expires_at": link.get("expires_at"), "ip_limit": int(link.get("ip_limit", 0) or 0),
         "config_count": max(1, min(40, int(link.get("config_count") or 1))),
