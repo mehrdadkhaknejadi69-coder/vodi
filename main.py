@@ -198,7 +198,8 @@ CONFIG = {
 LINKS: dict = {}
 SUBS: dict = {}
 # Per-subscription live usage samples. Values come from the real link used_bytes field.
-SUB_USAGE_HISTORY = defaultdict(lambda: deque(maxlen=96))
+SUB_USAGE_HISTORY = defaultdict(lambda: deque(maxlen=144))
+USAGE_PERSIST_TASK = None
 SESSIONS: dict = {}
 connections: dict = {}
 CATEGORIES: dict = {}
@@ -2388,6 +2389,37 @@ async def remove_sub_group(
     return name
 
 
+async def usage_history_loop():
+    """Persist live usage history periodically so the customer graph survives restarts."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            now = now_ir()
+            ts = now.replace(second=0, microsecond=0).isoformat()
+            changed = False
+            async with LINKS_LOCK:
+                for link in LINKS.values():
+                    history = link.setdefault("usage_history", [])
+                    used = int(link.get("used_bytes", 0) or 0)
+                    limit = int(link.get("limit_bytes", 0) or 0)
+                    if history and str(history[-1].get("ts", ""))[:16] == ts[:16]:
+                        if history[-1].get("used") != used or history[-1].get("limit") != limit:
+                            history[-1]["used"] = used
+                            history[-1]["limit"] = limit
+                            changed = True
+                    else:
+                        history.append({"ts": ts, "used": used, "limit": limit})
+                        if len(history) > 144:
+                            del history[:-144]
+                        changed = True
+            if changed:
+                await save_state()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("Usage history loop error: %s", exc)
+
+
 # ============================================================
 # STARTUP
 # ============================================================
@@ -2395,7 +2427,7 @@ async def remove_sub_group(
 @app.on_event("startup")
 async def startup():
 
-    global http_client
+    global http_client, USAGE_PERSIST_TASK
 
     limits = httpx.Limits(
         max_connections=500,
@@ -2414,6 +2446,8 @@ async def startup():
     )
 
     await load_state()
+
+    USAGE_PERSIST_TASK = asyncio.create_task(usage_history_loop())
 
     await ensure_default_categories()
     await ensure_default_link()
@@ -2449,6 +2483,15 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
+
+    global USAGE_PERSIST_TASK
+    if USAGE_PERSIST_TASK:
+        USAGE_PERSIST_TASK.cancel()
+        try:
+            await USAGE_PERSIST_TASK
+        except asyncio.CancelledError:
+            pass
+        USAGE_PERSIST_TASK = None
 
     await save_state()
 
@@ -4559,6 +4602,35 @@ async def subscription_single(
     )
 
 # ============================================================
+# LIVE SUBSCRIPTION TELEMETRY
+# ============================================================
+
+@app.get("/api/subscription/{uuid}")
+async def subscription_telemetry(uuid: str):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+        if not link or not is_link_allowed(link):
+            raise HTTPException(status_code=404, detail="subscription not found or inactive")
+        used = int(link.get("used_bytes", 0) or 0)
+        limit = int(link.get("limit_bytes", 0) or 0)
+        history = list(link.get("usage_history") or [])[-144:]
+        if not history:
+            history = [{"ts": now_ir().replace(second=0, microsecond=0).isoformat(), "used": used, "limit": limit}]
+        active_ips = sorted({str(x.get("ip") or "").strip() for x in connections.values() if x.get("uuid") == uuid and str(x.get("ip") or "").strip()})
+        active_sessions = sum(1 for x in connections.values() if x.get("uuid") == uuid)
+        return {
+            "ok": True, "uuid": uuid, "active": bool(link.get("active", True)),
+            "traffic_used": used, "traffic_limit": limit,
+            "traffic_remaining": max(0, limit - used) if limit else None,
+            "traffic_percent": min(100, round((used / limit) * 100, 1)) if limit else 0,
+            "active_connections": len(active_ips), "active_sessions": active_sessions,
+            "active_ips": active_ips,
+            "connection_limit": int(link.get("connection_limit", 0) or 0),
+            "ip_limit": int(link.get("ip_limit", 0) or 0),
+            "updated_at": now_ir().isoformat(), "usage_history": history,
+        }
+
+# ============================================================
 # SMART SUBSCRIPTION PORTAL
 # ============================================================
 
@@ -4597,26 +4669,43 @@ async def subscription_portal(uuid: str, request: Request):
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-:root{--bg:#060810;--card:#0c111b;--card2:#101725;--line:rgba(255,255,255,.08);--text:#f8fafc;--muted:#8792a6;--soft:#59657a;--a:#8b5cf6;--c:#22d3ee;--g:#22c55e;--w:#f59e0b;--r:#ef4444;--shadow:0 24px 80px rgba(0,0,0,.35)}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.18),transparent 30%),radial-gradient(circle at 100% 30%,rgba(34,211,238,.10),transparent 28%),var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif}.wrap{width:min(1120px,calc(100% - 28px));margin:auto;padding:24px 0 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.brand{display:flex;gap:11px;align-items:center}.logo{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#19132e,#101b2d);border:1px solid rgba(139,92,246,.35);font-weight:900;font-size:20px}.brand b{display:block;font-size:14px}.brand small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.live{display:flex;align-items:center;gap:7px;color:var(--g);font-size:9px;font-weight:800;padding:8px 11px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.07);border-radius:999px}.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 12px var(--g)}
+:root{--bg:#060810;--card:#0c111b;--card2:#101725;--line:rgba(255,255,255,.08);--text:#f8fafc;--muted:#8792a6;--soft:#59657a;--a:#8b5cf6;--c:#22d3ee;--g:#22c55e;--w:#f59e0b;--r:#ef4444;--shadow:0 24px 80px rgba(0,0,0,.35);--grid:rgba(255,255,255,.055);--url:#080c14}body[data-theme="light"]{--bg:#f4f7fb;--card:#ffffff;--card2:#f7f9fc;--line:rgba(15,23,42,.10);--text:#0f172a;--muted:#526176;--soft:#748197;--shadow:0 20px 60px rgba(15,23,42,.10);--grid:rgba(15,23,42,.08);--url:#eef2f7}body[data-theme="light"]{background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.10),transparent 30%),radial-gradient(circle at 100% 30%,rgba(34,211,238,.08),transparent 28%),var(--bg)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.18),transparent 30%),radial-gradient(circle at 100% 30%,rgba(34,211,238,.10),transparent 28%),var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif}.wrap{width:min(1120px,calc(100% - 28px));margin:auto;padding:24px 0 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.brand{display:flex;gap:11px;align-items:center}.logo{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#19132e,#101b2d);border:1px solid rgba(139,92,246,.35);font-weight:900;font-size:20px}.brand b{display:block;font-size:14px}.brand small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.live{display:flex;align-items:center;gap:7px;color:var(--g);font-size:9px;font-weight:800;padding:8px 11px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.07);border-radius:999px}.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 12px var(--g)}.theme-btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:8px 10px;display:flex;align-items:center;gap:6px;font-family:inherit;font-size:9px;font-weight:800;cursor:pointer;transition:.2s}.theme-btn:hover{transform:translateY(-1px);border-color:rgba(139,92,246,.35);box-shadow:0 8px 24px rgba(0,0,0,.12)}.theme-btn i{font-size:15px;color:var(--a)}
 .hero{position:relative;overflow:hidden;border:1px solid var(--line);background:linear-gradient(145deg,rgba(16,23,37,.98),rgba(10,14,24,.98));border-radius:28px;padding:28px;box-shadow:var(--shadow);margin-bottom:14px}.hero:after{content:"";position:absolute;width:340px;height:340px;left:-150px;top:-220px;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 68%);pointer-events:none}.eyebrow{color:var(--soft);font-size:9px;font-weight:900;letter-spacing:.12em}.hero h1{margin:8px 0 6px;font-size:clamp(25px,5vw,42px);letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);font-size:11px;line-height:2;max-width:700px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.chip{padding:7px 10px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:10px;color:var(--muted);font-size:9px}.chip b{color:var(--text)}
 .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.card{border:1px solid var(--line);background:rgba(12,17,27,.96);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.head b{font-size:13px}.head small{display:block;color:var(--soft);font-size:8px;margin-top:3px}.body{padding:19px}
-.usage{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:center}.gauge{width:210px;height:210px;margin:auto;border-radius:50%;background:conic-gradient(var(--a) calc(var(--pct)*1%),rgba(255,255,255,.07) 0);position:relative;display:grid;place-items:center;box-shadow:0 0 55px rgba(139,92,246,.10)}.gauge:before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--card);border:1px solid var(--line)}.gauge-center{position:relative;text-align:center}.gauge-center b{font-size:37px;letter-spacing:-.06em}.gauge-center small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--card2)}.metric small{display:block;color:var(--soft);font-size:8px}.metric b{display:block;margin-top:6px;font-size:15px}.metric .ok{color:var(--g)}.metric .cyan{color:var(--c)}.meter{margin-top:12px;height:9px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.meter i{display:block;height:100%;width:calc(var(--pct)*1%);border-radius:inherit;background:linear-gradient(90deg,var(--a),var(--c));transition:width .5s ease}.actions{display:flex;gap:8px;margin-top:14px}.btn{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--card2);color:var(--text);font-family:inherit;font-weight:800;font-size:10px;cursor:pointer;text-decoration:none;text-align:center}.btn.primary{background:linear-gradient(135deg,var(--a),#6366f1);border-color:transparent}.url{direction:ltr;text-align:left;word-break:break-all;padding:12px;border:1px dashed var(--line);border-radius:12px;background:#080c14;color:#9ca9bd;font:9px monospace}.qr{display:grid;place-items:center;margin-bottom:13px}.qr img{width:165px;height:165px;padding:8px;background:white;border-radius:16px}
-.livebox{display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.055);border-radius:15px;margin-bottom:10px}.livebox b{font-size:24px;color:var(--g)}.livebox small{display:block;color:var(--soft);font-size:8px}.session{color:var(--muted);font-size:9px}.status{display:inline-flex;padding:6px 9px;border-radius:9px;background:rgba(34,197,94,.10);color:var(--g);font-size:8px;font-weight:800}.status.off{background:rgba(239,68,68,.1);color:var(--r)}.chart{height:150px;position:relative}.chart svg{width:100%;height:100%;overflow:visible}.chart .line{fill:none;stroke:var(--c);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.chart .area{fill:url(#area)}.chart text{fill:var(--soft);font-size:8px}.note{padding:12px;border-radius:13px;background:rgba(255,255,255,.025);color:var(--muted);font-size:9px;line-height:2;margin-top:10px}.footer{text-align:center;color:var(--soft);font-size:8px;margin-top:18px}
+.usage{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:center}.gauge{width:210px;height:210px;margin:auto;border-radius:50%;background:conic-gradient(var(--a) calc(var(--pct)*1%),rgba(255,255,255,.07) 0);position:relative;display:grid;place-items:center;box-shadow:0 0 55px rgba(139,92,246,.10)}.gauge:before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--card);border:1px solid var(--line)}.gauge-center{position:relative;text-align:center}.gauge-center b{font-size:37px;letter-spacing:-.06em}.gauge-center small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--card2)}.metric small{display:block;color:var(--soft);font-size:8px}.metric b{display:block;margin-top:6px;font-size:15px}.metric .ok{color:var(--g)}.metric .cyan{color:var(--c)}.meter{margin-top:12px;height:9px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.meter i{display:block;height:100%;width:calc(var(--pct)*1%);border-radius:inherit;background:linear-gradient(90deg,var(--a),var(--c));transition:width .5s ease}.actions{display:flex;gap:8px;margin-top:14px}.btn{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--card2);color:var(--text);font-family:inherit;font-weight:800;font-size:10px;cursor:pointer;text-decoration:none;text-align:center}.btn.primary{background:linear-gradient(135deg,var(--a),#6366f1);border-color:transparent}.url{direction:ltr;text-align:left;word-break:break-all;padding:12px;border:1px dashed var(--line);border-radius:12px;background:var(--url);color:#9ca9bd;font:9px monospace}.qr{display:grid;place-items:center;margin-bottom:13px}.qr img{width:165px;height:165px;padding:8px;background:white;border-radius:16px}
+.livebox{display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.055);border-radius:15px;margin-bottom:10px}.livebox b{font-size:24px;color:var(--g)}.livebox small{display:block;color:var(--soft);font-size:8px}.session{color:var(--muted);font-size:9px}.status{display:inline-flex;padding:6px 9px;border-radius:9px;background:rgba(34,197,94,.10);color:var(--g);font-size:8px;font-weight:800}.status.off{background:rgba(239,68,68,.1);color:var(--r)}.chart{height:190px;position:relative}.chart svg{width:100%;height:100%;overflow:visible}.chart .line{fill:none;stroke:var(--c);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 4px 8px rgba(34,211,238,.18))}.chart .area{fill:url(#area)}.chart .gridline{stroke:var(--grid);stroke-width:1}.chart .point{fill:var(--card);stroke:var(--c);stroke-width:2}.chart text{fill:var(--soft);font-size:8px}.chart .last{fill:var(--c);stroke:var(--card);stroke-width:3}.note{padding:12px;border-radius:13px;background:rgba(255,255,255,.025);color:var(--muted);font-size:9px;line-height:2;margin-top:10px}.footer{text-align:center;color:var(--soft);font-size:8px;margin-top:18px}
 @media(max-width:800px){.grid,.usage{grid-template-columns:1fr}.gauge{width:185px;height:185px}.metrics{grid-template-columns:1fr 1fr}.hero{padding:22px}}@media(max-width:500px){.metrics{grid-template-columns:1fr}.wrap{width:min(100% - 18px,1120px);padding-top:14px}.hero{border-radius:21px}.card{border-radius:20px}}
 </style></head><body><main class="wrap">
-<header class="top"><div class="brand"><div class="logo">V</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div class="live"><i class="dot"></i><span id="liveState">سرویس آنلاین</span></div></header>
+<header class="top"><div class="brand"><div class="logo">V</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div style="display:flex;align-items:center;gap:8px"><button class="theme-btn" id="themeBtn" type="button" onclick="toggleTheme()" aria-label="تغییر حالت نمایش"><i class="ti ti-sun-moon"></i><span id="themeLabel">روشن</span></button><div class="live"><i class="dot"></i><span id="liveState">سرویس آنلاین</span></div></div></header>
 <section class="hero"><div class="eyebrow">PRIVATE SUBSCRIPTION</div><h1>__LABEL__</h1><p>مدیریت اشتراک، میزان مصرف و اتصال‌های فعال در یک صفحه. اطلاعات مصرف و وضعیت اتصال مستقیماً از سرویس دریافت می‌شود.</p><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span><span class="chip">انقضا <b id="expires">__EXPIRES__</b></span><span class="chip">وضعیت <b id="heroStatus">__STATUS__</b></span></div></section>
 <section class="grid"><div class="card"><div class="head"><div><b>مصرف اشتراک</b><small>نمایش مصرف واقعی ثبت‌شده روی سرویس</small></div><span id="updated" style="color:var(--soft);font-size:8px">—</span></div><div class="body"><div class="usage"><div class="gauge" id="gauge" style="--pct:__PCT__"><div class="gauge-center"><b id="pct">__PCT__%</b><small>مصرف شده</small></div></div><div><div class="metrics"><div class="metric"><small>مصرف شده</small><b class="cyan" id="used">__USED__</b></div><div class="metric"><small>باقی‌مانده</small><b class="ok" id="remaining">__REMAINING__</b></div><div class="metric"><small>سقف اشتراک</small><b id="limit">__LIMIT__</b></div><div class="metric"><small>درصد مصرف</small><b id="summaryPct">__PCT__%</b></div></div><div class="meter"><i id="meter"></i></div><div class="note">عدد مصرف از شمارنده واقعی سرویس خوانده می‌شود؛ با هر بار افزایش ترافیک، مقدار و نمودار نیز به‌روزرسانی می‌شوند.</div></div></div></div></div>
 <div class="card"><div class="head"><div><b>اتصال‌های فعال</b><small>کاربران آنلاین همین لحظه</small></div><span class="status" id="statusBadge">فعال</span></div><div class="body"><div class="livebox"><div><b id="liveConnections">__ACTIVE_CONN__</b><small>دستگاه / IP یکتا</small></div><div style="text-align:left"><span class="session" id="sessions">__ACTIVE_SESSIONS__ session</span><br><span class="session" id="connectionLimit">__CONN_LIMIT__</span></div></div><div class="metric"><small>محدودیت IP</small><b id="ipLimit">__IP_LIMIT__</b></div><div class="note">برای جلوگیری از نمایش عدد غیرواقعی، یک IP فقط یک کاربر فعال محسوب می‌شود؛ تعداد Sessionهای فنی جداگانه نمایش داده می‌شود.</div><div class="actions"><button class="btn primary" onclick="copyLink()"><i class="ti ti-copy"></i> کپی لینک اشتراک</button><a class="btn" href="__INFO_URL__">اطلاعات سرویس</a></div></div></div></section>
-<section class="card" style="margin-top:14px"><div class="head"><div><b>روند مصرف</b><small>تغییرات ثبت‌شده مصرف اشتراک</small></div><span id="chartState" style="color:var(--soft);font-size:8px">در حال همگام‌سازی</span></div><div class="body"><div class="chart" id="chart"><svg viewBox="0 0 900 150" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".22"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs><path id="areaPath" class="area"></path><path id="linePath" class="line"></path><text x="895" y="145" text-anchor="end">زمان</text></svg></div></div></section>
+<section class="card" style="margin-top:14px"><div class="head"><div><b>روند مصرف</b><small>تغییرات ثبت‌شده مصرف اشتراک</small></div><span id="chartState" style="color:var(--soft);font-size:8px">در حال همگام‌سازی</span></div><div class="body"><div class="chart" id="chart"><svg viewBox="0 0 900 190" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".24"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs><g id="gridLines"></g><path id="areaPath" class="area"></path><path id="linePath" class="line"></path><g id="chartPoints"></g><text x="895" y="184" text-anchor="end">زمان</text></svg></div></div></section>
 <section class="card" style="margin-top:14px"><div class="head"><div><b>لینک اصلی اشتراک</b><small>برای وارد کردن در کلاینت سازگار</small></div></div><div class="body"><div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=__QR__" alt="QR"></div><div class="url" id="subUrl">__RAW__</div><div class="actions"><button class="btn primary" onclick="copyLink()">کپی لینک</button><a class="btn" href="__RAW_URL__">باز کردن لینک</a></div></div></section>
 <div class="footer">VodiWalker · وضعیت و مصرف به‌صورت زنده از سرویس خوانده می‌شود</div></main>
 <script>
 const SUB_URL=__RAW_JS__;
 function fmt(n){n=Number(n)||0;if(!n)return'0 B';const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return(n>=100?Math.round(n):n>=10?n.toFixed(1):n.toFixed(2))+' '+u[i]}
 async function copyLink(){try{await navigator.clipboard.writeText(SUB_URL);alert('لینک اشتراک کپی شد ✓')}catch(e){prompt('لینک اشتراک:',SUB_URL)}}
-function drawChart(history,limit){const line=document.getElementById('linePath'),area=document.getElementById('areaPath');if(!Array.isArray(history)||history.length<2){line.setAttribute('d','M 0 125 L 900 125');area.setAttribute('d','M 0 125 L 900 125 L 900 150 L 0 150 Z');document.getElementById('chartState').textContent='هنوز داده تاریخی کافی نیست';return}const vals=history.map(x=>Number(x.used)||0),max=Math.max(limit||0,...vals,1),pts=vals.map((v,i)=>{const x=i*(900/Math.max(1,vals.length-1));const y=130-(v/max)*105;return[x,y]});const d=pts.map((p,i)=>(i?'L':'M')+' '+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');line.setAttribute('d',d);area.setAttribute('d',d+' L '+pts[pts.length-1][0].toFixed(1)+' 150 L 0 150 Z');document.getElementById('chartState').textContent=history.length+' نمونه ثبت‌شده'}
+function applyTheme(){const t=localStorage.getItem('vw_sub_theme')||'dark';document.body.dataset.theme=t;const light=t==='light';document.getElementById('themeLabel').textContent=light?'تیره':'روشن';document.querySelector('#themeBtn i').className=light?'ti ti-moon':'ti ti-sun-moon'}
+function toggleTheme(){const next=(document.body.dataset.theme||'dark')==='dark'?'light':'dark';localStorage.setItem('vw_sub_theme',next);applyTheme()}
+applyTheme();
+function drawChart(history,limit){
+  const line=document.getElementById('linePath'),area=document.getElementById('areaPath'),grid=document.getElementById('gridLines'),points=document.getElementById('chartPoints');
+  const clean=Array.isArray(history)?history.filter(x=>Number.isFinite(Number(x.used))).slice(-144):[];
+  if(clean.length<2){
+    line.setAttribute('d','M 0 158 L 900 158');area.setAttribute('d','M 0 158 L 900 158 L 900 170 L 0 170 Z');grid.innerHTML='';points.innerHTML='';document.getElementById('chartState').textContent='در حال جمع‌آوری داده واقعی';return;
+  }
+  const vals=clean.map(x=>Number(x.used)||0),max=Math.max(Number(limit)||0,...vals,1),min=0;
+  const top=14,bottom=162,height=bottom-top;
+  grid.innerHTML=[0,.25,.5,.75,1].map(r=>{const y=bottom-height*r;return `<line class="gridline" x1="0" y1="${y}" x2="900" y2="${y}"></line><text x="0" y="${y-4}">${fmt(vals.length?max*r:0)}</text>`}).join('');
+  const pts=vals.map((v,i)=>{const x=i*(900/Math.max(1,vals.length-1));const y=bottom-((v-min)/(max-min))*height;return[x,y]});
+  const d=pts.map((p,i)=>(i?'L':'M')+' '+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  line.setAttribute('d',d);area.setAttribute('d',d+' L '+pts[pts.length-1][0].toFixed(1)+' '+bottom+' L 0 '+bottom+' Z');
+  points.innerHTML=pts.map((p,i)=>{const h=clean[i]?.ts?new Date(clean[i].ts).toLocaleString('fa-IR',{hour:'2-digit',minute:'2-digit'}):'';return `<circle class="point ${i===pts.length-1?'last':''}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i===pts.length-1?5:2.2}"><title>${h} · ${fmt(vals[i])}</title></circle>`}).join('');
+  document.getElementById('chartState').textContent=`${clean.length} نقطه واقعی · آخرین مقدار ${fmt(vals[vals.length-1])}`;
+}
 async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*1000)/10):0;const gauge=document.getElementById('gauge');gauge.style.setProperty('--pct',p);document.getElementById('pct').textContent=p+'%';document.getElementById('summaryPct').textContent=p+'%';document.getElementById('used').textContent=fmt(used);document.getElementById('limit').textContent=lim?fmt(lim):'نامحدود';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';document.getElementById('meter').style.width=p+'%';const active=Number(d.active_connections||0);document.getElementById('liveConnections').textContent=active;document.getElementById('sessions').textContent=Number(d.active_sessions||0)+' session';document.getElementById('connectionLimit').textContent=Number(d.connection_limit||0)?'حداکثر '+d.connection_limit+' اتصال':'بدون محدودیت اتصال';document.getElementById('ipLimit').textContent=Number(d.ip_limit||0)?'حداکثر '+d.ip_limit+' IP':'بدون محدودیت';document.getElementById('heroStatus').textContent=d.active?'فعال':'غیرفعال';document.getElementById('liveState').textContent=d.active?'سرویس آنلاین':'سرویس غیرفعال';document.getElementById('statusBadge').textContent=d.active?'فعال':'غیرفعال';document.getElementById('statusBadge').classList.toggle('off',!d.active);const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;drawChart(d.usage_history,lim)}catch(e){document.getElementById('chartState').textContent='همگام‌سازی ناموفق'}}
 refresh();setInterval(()=>{if(!document.hidden)refresh()},10000);
 </script></body></html>'''
