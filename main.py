@@ -43,6 +43,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 
 APP_NAME = "VodiWalker"
+SALES_ENABLED = __import__("os").environ.get("VODIWALKER_SALES_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 APP_VERSION = "27.3.0"
 
 SUPPORT_USERNAME = "@VodiWalker"
@@ -2517,6 +2518,8 @@ h1{font-size:clamp(34px,6vw,64px);margin:18px 0 8px;letter-spacing:-2px}.sub{col
 
 @app.get("/plans", response_class=HTMLResponse)
 async def public_plans():
+    if not SALES_ENABLED:
+        return HTMLResponse("""<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VodiWalker · Future Release</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#070b13;color:#f5f7fb;font-family:Tahoma,Arial,sans-serif}.box{width:min(560px,calc(100% - 36px));padding:42px 28px;text-align:center;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:linear-gradient(145deg,#0d1320,#111a2a);box-shadow:0 30px 90px rgba(0,0,0,.35)}.ico{width:72px;height:72px;margin:0 auto 18px;display:grid;place-items:center;border-radius:22px;background:rgba(124,92,255,.15);font-size:30px}.muted{color:#9aa7bc;line-height:2;font-size:13px}.tag{display:inline-block;margin-top:18px;padding:8px 13px;border-radius:999px;background:rgba(53,214,255,.08);border:1px solid rgba(53,214,255,.2);color:#64dcff;font-size:11px}</style></head><body><main class="box"><div class="ico">🔒</div><h1>فروش اشتراک موقتاً غیرفعال است</h1><p class="muted">ماژول فروش و پلن‌ها در نسخه فعلی VodiWalker فعال نیست. این قابلیت پس از تکمیل و تست نهایی در نسخه‌های بعدی منتشر خواهد شد.</p><span class="tag">VodiWalker · Future Release</span></main></body></html>""")
     import sales
     return HTMLResponse(_store_html(sales.list_plans()))
 
@@ -4642,6 +4645,8 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 .badge-days.warn{background:rgba(245,165,36,.14);color:var(--warn);border-color:transparent}
 .badge-days.crit{background:rgba(242,73,85,.14);color:var(--bad);border-color:transparent}
 .summary-usage{position:relative;z-index:1;min-width:190px;text-align:right}.summary-usage .usage-pct{font-size:30px;font-weight:950;letter-spacing:-.05em;background:linear-gradient(135deg,var(--text),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}.summary-usage small{display:block;color:var(--soft);font-size:8px;margin-top:3px}
+.sub-hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.hero-stat{position:relative;overflow:hidden;padding:14px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,var(--panel),var(--panel2));box-shadow:var(--shadow)}.hero-stat:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-35px;bottom:-45px;background:radial-gradient(circle,rgba(53,211,153,.16),transparent 70%);pointer-events:none}.hero-stat .hs-top{display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-size:9px}.hero-stat .hs-top i{font-size:15px}.hero-stat b{display:block;font-size:20px;margin-top:7px}.hero-stat small{color:var(--soft);font-size:8px}.live-conn{color:var(--green)}.live-conn .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-left:5px;box-shadow:0 0 0 0 rgba(53,211,153,.45);animation:pulse 1.7s infinite}@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(53,211,153,0)}}
+.usage-dashboard{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:center;margin-bottom:18px}.usage-gauge{width:210px;height:210px;position:relative;display:grid;place-items:center;margin:auto}.usage-gauge svg{width:100%;height:100%;transform:rotate(-90deg)}.usage-gauge .track{fill:none;stroke:var(--line);stroke-width:15}.usage-gauge .value{fill:none;stroke:url(#gaugeGrad);stroke-width:15;stroke-linecap:round;transition:stroke-dashoffset .5s ease}.gauge-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}.gauge-center b{font-size:34px;letter-spacing:-.06em}.gauge-center small{display:block;color:var(--soft);font-size:8px;margin-top:-48px}.usage-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.usage-metric{padding:13px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}.usage-metric small{display:block;color:var(--soft);font-size:8px}.usage-metric b{display:block;font-size:15px;margin-top:5px}.usage-metric.ok b{color:var(--green)}.usage-metric.warn b{color:var(--warn)}@media(max-width:760px){.sub-hero-stats{grid-template-columns:1fr}.usage-dashboard{grid-template-columns:1fr}.usage-gauge{width:185px;height:185px}.usage-metrics{grid-template-columns:1fr 1fr}}
 .tabs{position:relative;z-index:1;display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:16px;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tab-btn{padding:10px 16px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font:800 11px Vazirmatn;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s}
@@ -4710,7 +4715,12 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 @media(max-width:820px),(pointer:coarse){.bg-orb{animation:none!important;filter:blur(24px)}}
 </style></head><body><svg width="0" height="0" style="position:absolute"><defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#35d6ff"/></linearGradient></defs></svg><div class="bg-orb bg-orb1"></div><div class="bg-orb bg-orb2"></div><main class="wrap">
 <div class="nav"><div class="brand"><div class="mark">✦</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div class="nav-right"><div class="live-pill"><span class="dot"></span><span id="status">__STATUS__</span></div><button class="theme-btn" onclick="toggleTheme()" title="تغییر پوسته"><i id="themeIcon" class="ti ti-moon"></i></button></div></div>
-<section class="summary"><div><div class="eyebrow">SECURE PERSONAL ACCESS</div><h1>__LABEL__</h1><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span>__PLAN_CHIP__<span class="chip">IP Limit <b>__IP__</b></span><span class="chip">Connection <b>__CONN__</b></span><span class="badge-days __DAYSCLASS__" id="daysBadge">__DAYS__</span></div></div><div class="summary-usage"><div class="usage-pct" id="pct">__PCT__%</div><small>درصد مصرف فعلی · <span id="updated">در حال بروزرسانی</span></small></div></section>
+<section class="summary"><div><div class="eyebrow">SECURE PERSONAL ACCESS</div><h1>__LABEL__</h1><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span>__PLAN_CHIP__<span class="chip">IP Limit <b>__IP__</b></span><span class="chip">Connection <b>__CONN__</b></span><span class="badge-days __DAYSCLASS__" id="daysBadge">__DAYS__</span></div></div><div class="summary-usage"><div class="usage-pct" id="summaryPct">__PCT__%</div><small>درصد مصرف فعلی · <span id="updated">در حال بروزرسانی</span></small></div></section>
+<section class="sub-hero-stats">
+  <div class="hero-stat"><div class="hs-top"><span>اتصال‌های فعال</span><i class="ti ti-users live-conn"></i></div><b id="heroConnections">__ACTIVE_CONN__</b><small id="heroConnectionHint">اتصال هم‌زمان</small></div>
+  <div class="hero-stat"><div class="hs-top"><span>مصرف ترافیک</span><i class="ti ti-chart-donut"></i></div><b id="heroTraffic">__USED__</b><small>از __LIMIT__</small></div>
+  <div class="hero-stat"><div class="hs-top"><span>وضعیت سرویس</span><i class="ti ti-shield-check"></i></div><b id="heroStatus">__STATUS__</b><small id="heroUpdated">LIVE</small></div>
+</section>
 <nav class="tabs">
   <button class="tab-btn on" data-tab="connect" onclick="showTab('connect')"><i class="ti ti-link"></i>اتصال</button>
   <button class="tab-btn" data-tab="usage" onclick="showTab('usage')"><i class="ti ti-chart-donut"></i>مصرف و جزئیات</button>
@@ -4733,8 +4743,13 @@ html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff
 </section>
 <section class="tab-panel" id="tab-usage">
   <div class="panel"><div class="phead"><div><b>مصرف و ظرفیت</b><small>نمودار بر اساس داده واقعی سابسکریپشن</small></div><span class="live-pill"><span class="dot"></span> LIVE</span></div><div class="pbody">
-    <div class="usage-top"><div><div class="usage-number" id="traffic">__USED__ / __LIMIT__</div><div class="usage-note">باقی‌مانده: <b id="remaining">__REMAINING__</b></div></div><div style="text-align:left"><small style="display:block;color:var(--soft);font-size:8px">وضعیت</small><b id="liveState">__STATUS__</b></div></div>
-    <div class="progress" id="progressWrap"><i id="progress" class="__PCTCLASS__"></i></div>
+    <div class="usage-dashboard">
+      <div class="usage-gauge"><svg viewBox="0 0 220 220" aria-label="درصد مصرف"><defs><linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--cyan)"/></linearGradient></defs><circle class="track" cx="110" cy="110" r="86"/><circle id="usageGauge" class="value" cx="110" cy="110" r="86" stroke-dasharray="540.35" stroke-dashoffset="540.35"/></svg><div class="gauge-center"><div><b id="pct">__PCT__%</b><small>مصرف ترافیک</small></div></div></div>
+      <div class="usage-metrics">
+        <div class="usage-metric"><small>مصرف شده</small><b id="traffic">__USED__</b></div><div class="usage-metric"><small>باقی‌مانده</small><b id="remaining">__REMAINING__</b></div>
+        <div class="usage-metric ok"><small>اتصال‌های فعال</small><b id="liveConnections">__ACTIVE_CONN__</b></div><div class="usage-metric"><small>محدودیت اتصال</small><b id="connectionLimit">__CONN_LIMIT__</b></div>
+      </div>
+    </div>
     <div class="usage-chart-card"><div class="chart-head"><span>روند مصرف واقعی</span><span id="usageChartMeta">در انتظار داده</span></div><svg id="usageChart" viewBox="0 0 900 260" preserveAspectRatio="none" aria-label="نمودار مصرف"></svg></div>
     <div class="stats"><div class="stat"><small>انقضا</small><b id="expiry">__EXPIRES__</b></div><div class="stat"><small>IP Limit</small><b>__IP__</b></div><div class="stat"><small>Connection</small><b>__CONN__</b></div><div class="stat"><small>آخرین بروزرسانی</small><b id="updated2">—</b></div></div>
   </div></div>
@@ -4759,7 +4774,7 @@ function updateThemeIcon(){const isLight=document.documentElement.getAttribute('
 updateThemeIcon();
 try{const savedTab=sessionStorage.getItem('vw_sub_tab');if(savedTab)showTab(savedTab)}catch(e){}
 function drawUsageChart(history,limit){const el=document.getElementById('usageChart');if(!el)return;const rows=(Array.isArray(history)?history:[]).filter(x=>Number.isFinite(Number(x.used)));if(!rows.length){el.innerHTML='<text x="450" y="130" text-anchor="middle" fill="currentColor" opacity=".45" font-size="14">هنوز داده‌ای برای رسم نمودار ثبت نشده</text>';document.getElementById('usageChartMeta').textContent='بدون داده';return}const w=900,h=260,pad=24;const vals=rows.map(x=>Math.max(0,Number(x.used)||0));const max=Math.max(limit||0,...vals,1);const pts=vals.map((v,i)=>{const x=pad+(i/Math.max(1,vals.length-1))*(w-pad*2);const y=h-pad-(v/max)*(h-pad*2);return [x,y]});const line=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');const area=`${pad},${h-pad} ${line} ${w-pad},${h-pad}`;const last=pts[pts.length-1];const labels=rows.map(x=>new Date(Number(x.ts)*1000).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}));el.innerHTML=`<defs><linearGradient id="usageArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><line class="gridline" x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}"/><line class="gridline" x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}"/><polygon class="area" points="${area}"/><polyline class="line" points="${line}"/><circle class="point" cx="${last[0]}" cy="${last[1]}" r="5"/>`;document.getElementById('usageChartMeta').textContent=`${rows.length} نقطه · آخرین ${labels[labels.length-1]}`}
-async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*100)):0,cls=pctCls(p);document.getElementById('traffic').textContent=lim?fmt(used)+' / '+fmt(lim):fmt(used)+' / نامحدود';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';const pr=document.getElementById('progress');pr.style.width=p+'%';pr.className=cls;document.getElementById('pct').textContent=p+'%';document.getElementById('liveState').textContent=d.active?'فعال':'غیرفعال';const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;document.getElementById('updated2').textContent=now;drawUsageChart(d.usage_history,lim)}catch(e){}}refresh();setInterval(()=>{if(!document.hidden)refresh()},15000)</script></body></html>"""
+async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*100)):0;const activeConn=Number(d.active_connections||0),connLimit=Number(d.connection_limit||0);document.getElementById('traffic').textContent=lim?fmt(used)+' / '+fmt(lim):fmt(used)+' / نامحدود';document.getElementById('heroTraffic').textContent=fmt(used);document.getElementById('heroConnections').textContent=activeConn;document.getElementById('liveConnections').textContent=activeConn;document.getElementById('connectionLimit').textContent=connLimit?connLimit:'نامحدود';document.getElementById('heroStatus').textContent=d.active?'فعال':'غیرفعال';document.getElementById('heroConnectionHint').textContent=connLimit?('از '+connLimit+' اتصال مجاز'):'اتصال هم‌زمان';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';document.getElementById('pct').textContent=p+'%';document.getElementById('summaryPct').textContent=p+'%';const gauge=document.getElementById('usageGauge');if(gauge)gauge.style.strokeDashoffset=(540.35-(540.35*p/100)).toFixed(2);document.getElementById('liveState').textContent=d.active?'فعال':'غیرفعال';const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;document.getElementById('updated2').textContent=now;drawUsageChart(d.usage_history,lim)}catch(e){}}refresh();setInterval(()=>{if(!document.hidden)refresh()},15000)</script></body></html>"""
     plan_chip = f'<span class="chip">پلن <b>{safe["plan"]}</b></span>' if safe["plan"] else ""
     qa_v2rayng = f"v2rayng://install-sub?url={qr}"
     qa_hiddify = f"hiddify://import/{qr}"
@@ -4777,6 +4792,9 @@ async def subscription_api(uuid: str):
         raise HTTPException(status_code=404, detail="not found")
     used = int(link.get("used_bytes", 0) or 0)
     limit = int(link.get("limit_bytes", 0) or 0)
+    # Live connections are calculated from the actual relay connection registry.
+    # This is intentionally not cached so the customer sees the current state.
+    active_connections = sum(1 for item in connections.values() if item.get("uuid") == uuid)
     now_ts = time.time()
     history = SUB_USAGE_HISTORY[uuid]
     # Keep a sample only when usage changes or enough time has elapsed. This makes
@@ -4789,6 +4807,8 @@ async def subscription_api(uuid: str):
         "traffic_used": used, "traffic_limit": limit,
         "usage_history": list(history),
         "traffic_remaining": max(0, limit-used) if limit else None,
+        "active_connections": active_connections,
+        "connection_limit": int(link.get("connection_limit", 0) or 0),
         "expires_at": link.get("expires_at"), "ip_limit": int(link.get("ip_limit", 0) or 0),
         "config_count": max(1, min(40, int(link.get("config_count") or 1))),
         "subscription": f"/sub/{uuid}", "portal": f"/subscription/{uuid}",
