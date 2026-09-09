@@ -45,6 +45,8 @@ from main import (
 )
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+# فروش اشتراک فعلاً عمداً خاموش است؛ فقط مدیریت سرویس از ربات فعال می‌ماند.
+SALES_ENABLED = os.environ.get("VODIWALKER_SALES_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 _admin_ids_raw = os.environ.get("TELEGRAM_ADMIN_IDS", "").strip()
 ADMIN_IDS = {int(x) for x in _admin_ids_raw.replace(" ", "").split(",") if x.isdigit()} if _admin_ids_raw else set()
 
@@ -175,13 +177,15 @@ def _is_admin(chat_id: int) -> bool:
 
 # ── Keyboards ────────────────────────────────────────────────────────────────
 def _main_menu_kb():
-    return {"inline_keyboard": [
-        [{"text": "🛒 فروشگاه و پلن‌ها", "callback_data": "store"}],
-        [{"text": "📊 آمار کلی", "callback_data": "stats"}, {"text": "📈 گزارش فروش", "callback_data": "salesstats"}],
-        [{"text": "📋 لیست کانفیگ‌ها", "callback_data": "list:0"}, {"text": "➕ ساخت کانفیگ", "callback_data": "newcfg"}],
-        [{"text": "🗂 گروه‌های ساب", "callback_data": "subs:0"}],
-        [{"text": "🔄 رفرش", "callback_data": "menu"}],
-    ]}
+    rows = [
+        [{"text": "📊 داشبورد زنده", "callback_data": "stats"}],
+        [{"text": "📋 اینباندها و کانفیگ‌ها", "callback_data": "list:0"}, {"text": "➕ ساخت اینباند", "callback_data": "newcfg"}],
+        [{"text": "👥 کلاینت‌ها", "callback_data": "list:0"}, {"text": "🗂 سابسکریپشن‌ها", "callback_data": "subs:0"}],
+    ]
+    if SALES_ENABLED:
+        rows.append([{ "text": "🛒 فروشگاه و پلن‌ها", "callback_data": "store" }])
+    rows.append([{ "text": "⚙️ وضعیت مدیریت", "callback_data": "menu" }])
+    return {"inline_keyboard": rows}
 
 def _links_list_kb(page: int):
     items = sorted(LINKS.items(), key=lambda kv: kv[1].get("created_at", ""), reverse=True)
@@ -611,18 +615,21 @@ async def _handle_message(msg: dict):
     # فروشگاه برای همه کاربران فعال است؛ بخش مدیریت فقط برای ادمین‌هاست.
     if text.startswith("/start"):
         arg=text.split(maxsplit=1)[1] if len(text.split(maxsplit=1))>1 else ""
-        if arg.startswith("buy_") and get_plan(arg[4:]):
+        if SALES_ENABLED and arg.startswith("buy_") and get_plan(arg[4:]):
             await _send_invoice(chat_id,arg[4:])
             return
         if _is_admin(chat_id):
             _pending.pop(chat_id, None)
             await _send(chat_id, _admin_welcome_text(get_bot_text("welcome", "👋 <b>VodiWalker Control Center</b>\nمدیریت کامل سرویس و فروشگاه:")), _main_menu_kb())
         else:
-            await _send(chat_id, _store_text(), _store_kb())
+            await _send(chat_id, "🔒 <b>VodiWalker</b>\n\nفروش اشتراک در حال حاضر غیرفعال است و در نسخه‌های بعدی فعال می‌شود.")
         return
 
     if text in ("/plans", "/shop", "/store"):
-        await _send(chat_id, _store_text(), _store_kb())
+        if not SALES_ENABLED:
+            await _send(chat_id, "🔒 فروش اشتراک فعلاً غیرفعال است.\n\nاین ماژول در نسخه‌های بعدی VodiWalker فعال خواهد شد.")
+        else:
+            await _send(chat_id, _store_text(), _store_kb())
         return
 
     if text == "/my":
@@ -636,7 +643,7 @@ async def _handle_message(msg: dict):
         return
 
     if not _is_admin(chat_id):
-        await _send(chat_id, "از فروشگاه استفاده کن:", _store_kb())
+        await _send(chat_id, "🔒 فروش اشتراک فعلاً غیرفعال است.\n\nبرای مدیریت سرویس، فقط ادمین‌های مجاز دسترسی دارند.")
         return
 
     if text == "/admin":
@@ -789,10 +796,17 @@ async def _handle_callback(cb: dict):
 
     # Public storefront callbacks
     if data == "store":
+        if not SALES_ENABLED:
+            await _answer_cb(cb_id, "فروش اشتراک فعلاً غیرفعال است.")
+            await _edit(chat_id, message_id, "🔒 <b>فروش اشتراک موقتاً غیرفعال است</b>\n\nاین بخش پس از آماده‌سازی ماژول فروش در نسخه‌های بعدی فعال می‌شود.\n\n🛠 مدیریت اینباند، کلاینت و سابسکریپشن همچنان فعال است.", _main_menu_kb())
+            return
         await _answer_cb(cb_id)
         await _edit(chat_id, message_id, _store_text(), _store_kb())
         return
     if data.startswith("buy:"):
+        if not SALES_ENABLED:
+            await _answer_cb(cb_id, "فروش اشتراک فعلاً غیرفعال است.")
+            return
         await _answer_cb(cb_id, "در حال آماده‌سازی فاکتور…")
         await _send_invoice(chat_id, data.split(":",1)[1])
         return
@@ -838,6 +852,9 @@ async def _handle_callback(cb: dict):
         return
 
     if data == "salesstats":
+        if not SALES_ENABLED:
+            await _edit(chat_id,message_id,"🔒 <b>گزارش فروش</b>\n\nماژول فروش فعلاً غیرفعال است و در نسخه‌های بعدی فعال می‌شود.",_main_menu_kb())
+            return
         st=sales_stats()
         await _edit(chat_id,message_id,
                     f"📈 <b>گزارش فروش VodiWalker</b>\n\n"
