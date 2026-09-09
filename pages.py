@@ -568,15 +568,18 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 .ib-section{border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.018);overflow:hidden}.ib-section-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.ib-section-head b{font-size:12.5px}.ib-section-head small{font-size:10.5px;color:var(--sub2)}
 .ib-section-body{padding:14px}.ib-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ib-grid.three{grid-template-columns:1fr 1fr 1fr}.ib-full{grid-column:1/-1}
 .ib-choice{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-/* Professional inbound protocol/transport matrix */
+/* Professional inbound protocol/transport matrix — renamed to .ib-opt (was
+   accidentally reusing the .ib-card class name used by the main inbound
+   dashboard cards above; that collision was overriding the dashboard card
+   layout with these small radio-tile rules). */
 .ib-matrix{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
-.ib-card{position:relative;display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.01));cursor:pointer;transition:.16s;user-select:none}
-.ib-card:hover{border-color:rgba(168,85,247,.45);transform:translateY(-1px)}
-.ib-card.on{border-color:var(--accent);background:linear-gradient(145deg,rgba(124,58,237,.18),rgba(168,85,247,.08));box-shadow:0 8px 24px rgba(124,58,237,.12),inset 0 0 0 1px rgba(168,85,247,.18)}
-.ib-card.off{opacity:.42;cursor:not-allowed;filter:saturate(.5)}
-.ib-card input{position:absolute;opacity:0;pointer-events:none}
-.ib-card .ib-card-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.05);color:var(--accent);font-size:17px;flex:0 0 auto}
-.ib-card b{display:block;font-size:11.5px}.ib-card small{display:block;color:var(--sub2);font-size:8.5px;margin-top:2px}
+.ib-opt{position:relative;display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,rgba(255,255,255,.025),rgba(255,255,255,.01));cursor:pointer;transition:.16s;user-select:none}
+.ib-opt:hover{border-color:rgba(168,85,247,.45);transform:translateY(-1px)}
+.ib-opt.on{border-color:var(--accent);background:linear-gradient(145deg,rgba(124,58,237,.18),rgba(168,85,247,.08));box-shadow:0 8px 24px rgba(124,58,237,.12),inset 0 0 0 1px rgba(168,85,247,.18)}
+.ib-opt.off{opacity:.42;cursor:not-allowed;filter:saturate(.5)}
+.ib-opt input{position:absolute;opacity:0;pointer-events:none}
+.ib-opt .ib-opt-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.05);color:var(--accent);font-size:17px;flex:0 0 auto}
+.ib-opt b{display:block;font-size:11.5px}.ib-opt small{display:block;color:var(--sub2);font-size:8.5px;margin-top:2px}
 .ib-step{display:flex;align-items:center;gap:8px;margin-bottom:11px}.ib-step .num{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:rgba(124,58,237,.16);color:#c9a8ff;font-size:10px;font-weight:900}.ib-step b{font-size:12px}.ib-step small{display:block;color:var(--sub2);font-size:9px;margin-top:2px}
 .ib-divider{height:1px;background:var(--line);margin:15px 0}
 .ib-mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -1500,6 +1503,8 @@ function ibCardHtml(l){
       <div class="ib-card-actions">
         <button class="iconbtn" title="اشتراک" onclick="showSubLink('${l.uuid}')"><i class="ti ti-qrcode"></i></button>
         <button class="iconbtn" title="ویرایش" onclick="openLinkDrawer('${l.uuid}')"><i class="ti ti-pencil"></i></button>
+        <button class="iconbtn" title="تعویض لینک (UUID جدید)" onclick="regenerateLink('${l.uuid}')"><i class="ti ti-replace"></i></button>
+        <button class="iconbtn" title="ریست حجم مصرفی" onclick="resetLinkUsage('${l.uuid}')"><i class="ti ti-refresh"></i></button>
         <button class="iconbtn" title="حذف" onclick="deleteLink('${l.uuid}')"><i class="ti ti-trash" style="color:var(--bad)"></i></button>
       </div>
     </div>
@@ -1594,6 +1599,16 @@ async function deleteLink(uid){
   try{ await api(`/api/links/${uid}`, {method:'DELETE'}); toast('حذف شد'); loadLinks(); }
   catch(e){ toast(e.message, false); }
 }
+async function resetLinkUsage(uid){
+  if(!confirm(t('حجم مصرفی این کانفیگ از صفر شروع شود؟'))) return;
+  try{ await api(`/api/links/${uid}/reset-usage`, {method:'POST'}); toast('حجم مصرف ریست شد'); loadLinks(); }
+  catch(e){ toast(e.message, false); }
+}
+async function regenerateLink(uid){
+  if(!confirm(t('یک لینک/UUID جدید صادر شود؟ لینک قبلی بلافاصله از کار می‌افتد و باید لینک جدید را دوباره برای کاربر بفرستید.'))) return;
+  try{ const r = await api(`/api/links/${uid}/regenerate`, {method:'POST'}); toast('لینک جدید صادر شد'); loadLinks(); showSubLink(r.uuid); }
+  catch(e){ toast(e.message, false); }
+}
 async function openAutoLink(){
   try{ await api('/api/links/auto', {method:'POST', body: JSON.stringify({profile:'balanced'})}); toast('کانفیگ خودکار ساخته شد'); loadLinks(); }
   catch(e){ toast(e.message, false); }
@@ -1648,7 +1663,7 @@ function manualBuilderHtml(l){
         <div class="ib-section-body">
           <div class="ib-step"><span class="num">1</span><div><b>پروتکل پایه</b><small>اول مشخص کن با چه پروتکلی کانفیگ ساخته شود</small></div></div>
           <div id="ibProtocolCards" class="ib-matrix">
-            ${Object.entries(bpLabels).map(([id,label])=>`<label class="ib-card ${bp===id?'on':''}" data-proto-card="${id}"><input type="radio" name="ibBaseProtocol" value="${id}" ${bp===id?'checked':''} onchange="selectBaseProtocol('${id}')"><span class="ib-card-icon"><i class="ti ${icons[id]||'ti-network'}"></i></span><span><b>${label}</b><small>${id==='vless'?'UUID / XTLS ecosystem':id==='vmess'?'Legacy-compatible':id==='trojan'?'Password-style auth':'AEAD proxy'}</small></span></label>`).join('')}
+            ${Object.entries(bpLabels).map(([id,label])=>`<label class="ib-opt ${bp===id?'on':''}" data-proto-card="${id}"><input type="radio" name="ibBaseProtocol" value="${id}" ${bp===id?'checked':''} onchange="selectBaseProtocol('${id}')"><span class="ib-opt-icon"><i class="ti ${icons[id]||'ti-network'}"></i></span><span><b>${label}</b><small>${id==='vless'?'UUID / XTLS ecosystem':id==='vmess'?'Legacy-compatible':id==='trojan'?'Password-style auth':'AEAD proxy'}</small></span></label>`).join('')}
           </div>
         </div>
       </div>
@@ -1657,7 +1672,7 @@ function manualBuilderHtml(l){
         <div class="ib-section-body">
           <div class="ib-step"><span class="num">2</span><div><b>Transport / Network</b><small>حالا مسیر انتقال را جداگانه انتخاب کن</small></div></div>
           <div id="ibTransportCards" class="ib-matrix">
-            ${nets.map(([id,label,sub,icon])=>`<label class="ib-card ${net===id?'on':''}" data-net-card="${id}"><input type="radio" name="ibNetwork" value="${id}" ${net===id?'checked':''} onchange="selectTransport('${id}')"><span class="ib-card-icon"><i class="ti ${icon}"></i></span><span><b>${label}</b><small>${sub}</small></span></label>`).join('')}
+            ${nets.map(([id,label,sub,icon])=>`<label class="ib-opt ${net===id?'on':''}" data-net-card="${id}"><input type="radio" name="ibNetwork" value="${id}" ${net===id?'checked':''} onchange="selectTransport('${id}')"><span class="ib-opt-icon"><i class="ti ${icon}"></i></span><span><b>${label}</b><small>${sub}</small></span></label>`).join('')}
           </div>
           <div id="ibTransportNote" class="ib-status" style="margin-top:10px"></div>
         </div>
@@ -1667,7 +1682,7 @@ function manualBuilderHtml(l){
         <div class="ib-section-body">
           <div class="ib-step"><span class="num">3</span><div><b>Security</b><small>TLS / Reality / None را مستقل از ترنسپورت انتخاب کن</small></div></div>
           <div id="ibSecurityCards" class="ib-matrix">
-            ${secs.map(x=>`<label class="ib-card ${sec===x.id?'on':''}" data-sec-card="${x.id}"><input type="radio" name="ibSecurity" value="${x.id}" ${sec===x.id?'checked':''} onchange="selectSecurity('${x.id}')"><span class="ib-card-icon"><i class="ti ${x.id==='reality'?'ti-key':x.id==='tls'?'ti-lock':'ti-lock-open'}"></i></span><span><b>${x.label}</b><small>${x.id==='reality'?'Reality public-key mode':x.id==='tls'?'Standard TLS':'No TLS wrapper'}</small></span></label>`).join('')}
+            ${secs.map(x=>`<label class="ib-opt ${sec===x.id?'on':''}" data-sec-card="${x.id}"><input type="radio" name="ibSecurity" value="${x.id}" ${sec===x.id?'checked':''} onchange="selectSecurity('${x.id}')"><span class="ib-opt-icon"><i class="ti ${x.id==='reality'?'ti-key':x.id==='tls'?'ti-lock':'ti-lock-open'}"></i></span><span><b>${x.label}</b><small>${x.id==='reality'?'Reality public-key mode':x.id==='tls'?'Standard TLS':'No TLS wrapper'}</small></span></label>`).join('')}
           </div>
           <div id="mLiveHint" class="ib-status" style="margin-top:10px"></div>
         </div>
