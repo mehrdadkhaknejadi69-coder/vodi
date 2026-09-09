@@ -1,11 +1,5 @@
 # xhttp_siz10.py
 # ══════════════════════════════════════════════════════════════════════════════
-# Siz10a · XHTTP Ultra Transport — دو مد: packet-up / stream-up
-#  (stream-one حذف شد. منطق relay_vless دست‌نخورده.
-#   stream-up بازنویسی شده با موتور تطبیقی: _AdaptiveFlow (AIMD روی high-water)
-#   + _QuotaGate تطبیقی (batch بر اساس نرخ واقعی هر سشن) + سوکت تیون‌شده)
-# ══════════════════════════════════════════════════════════════════════════════
-
 import asyncio
 import secrets
 import socket
