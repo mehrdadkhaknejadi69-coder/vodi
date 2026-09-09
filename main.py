@@ -4564,276 +4564,74 @@ async def subscription_single(
 
 @app.get("/subscription/{uuid}", response_class=HTMLResponse)
 async def subscription_portal(uuid: str, request: Request):
-    """Premium customer-facing subscription portal with live usage dashboard."""
+    '''Premium customer subscription portal. All figures come from live backend state.'''
     async with LINKS_LOCK:
         link = LINKS.get(uuid)
+        if link:
+            link = dict(link)
     if not is_link_allowed(link):
         raise HTTPException(status_code=404, detail="subscription not found or inactive")
+
     host = get_host(request)
     raw_url = f"{get_scheme()}://{host}/sub/{uuid}"
     info_url = f"{get_scheme()}://{host}/info/{uuid}"
     label = str(link.get("label") or "VodiWalker Subscription")
     protocol = protocol_display_label(link)
-    used = int(link.get("used_bytes", 0) or 0); limit = int(link.get("limit_bytes", 0) or 0)
-    pct = min(100, round((used / limit) * 100, 1)) if limit > 0 else 0
-    remaining = fmt_bytes(max(0, limit-used)) if limit > 0 else "نامحدود"
-    expires = str(link.get("expires_at") or "نامحدود")
-    ip_limit = int(link.get("ip_limit", 0) or 0); conn_limit = int(link.get("connection_limit", 0) or 0)
-    active = bool(link.get("active", True))
-    pct_class = "crit" if pct >= 90 else ("warn" if pct >= 70 else "")
-    ring_circ = 263.89
-    ring_offset = round(ring_circ * (1 - (pct / 100)), 2)
-    days_left = None
-    expired_flag = False
-    if link.get("expires_at"):
-        try:
-            exp_dt = datetime.fromisoformat(str(link.get("expires_at")))
-            days_left = (exp_dt - datetime.now()).days
-            expired_flag = days_left < 0
-        except Exception:
-            days_left = None
-    if expired_flag:
-        days_text = "منقضی شده"; days_class = "crit"
-    elif days_left is None:
-        days_text = "نامحدود"; days_class = ""
-    elif days_left <= 3:
-        days_text = f"{max(days_left,0)} روز مانده"; days_class = "warn"
-    else:
-        days_text = f"{days_left} روز مانده"; days_class = ""
-    support_url = f"https://t.me/{str(SUPPORT_USERNAME).lstrip('@')}"
-    plan_badge = str(link.get("category_name") or "")
-    initial_active_ips = {
-        str(item.get("ip") or "").strip()
-        for item in connections.values()
-        if item.get("uuid") == uuid and str(item.get("ip") or "").strip()
-    }
-    initial_active_connections = len(initial_active_ips)
-    safe={"label":escape_html(label),"protocol":escape_html(protocol),"raw":escape_html(raw_url),"info":escape_html(info_url),"uuid":escape_html(uuid),"remaining":escape_html(remaining),"expires":escape_html(expires[:19]),"status":"فعال" if active else "غیرفعال","pct":str(pct),"pctclass":pct_class,"ringoffset":str(ring_offset),"used":escape_html(fmt_bytes(used)),"limit":escape_html(fmt_bytes(limit) if limit else "نامحدود"),"ip":str(ip_limit or 0),"conn":str(conn_limit or 0),"days":escape_html(days_text),"daysclass":days_class,"support":escape_html(support_url),"plan":escape_html(plan_badge) if plan_badge else ""}
-    qr=quote(raw_url,safe="")
-    html = r"""<!doctype html><html lang="fa" dir="rtl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#070b13" id="themeColorMeta"><title>__LABEL__ · VodiWalker</title>
-<script>(function(){try{var t=localStorage.getItem('vw_sub_theme');if(t==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}})();</script>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
-<style>
-:root{--bg:#060910;--panel:#0c111a;--panel2:#101725;--line:rgba(255,255,255,.085);--line2:rgba(255,255,255,.16);--muted:#8c98ab;--soft:#5f6b7e;--text:#f5f7fb;--accent:#8b5cf6;--cyan:#35d6ff;--green:#35d399;--warn:#f5a524;--bad:#f24955;--shadow:0 30px 90px rgba(0,0,0,.34);--grid-line:rgba(255,255,255,.025)}
-html[data-theme="light"]{--bg:#eef1f4;--panel:#ffffff;--panel2:#f5f7fb;--line:rgba(20,25,40,.11);--line2:rgba(20,25,40,.18);--muted:#5b6478;--soft:#8992a6;--text:#161a27;--accent:#7c3aed;--cyan:#0891b2;--green:#059669;--warn:#c9820a;--bad:#dc2f47;--shadow:0 20px 55px rgba(30,34,60,.10);--grid-line:rgba(20,25,40,.035)}
-*{box-sizing:border-box}
-html{transition:background-color .25s ease}
-body{margin:0;min-height:100vh;color:var(--text);font-family:Vazirmatn,Inter,sans-serif;background:var(--bg);overflow-x:hidden;transition:background-color .25s ease,color .25s ease}
-body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:1;background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,#000,transparent 90%)}
-.bg-orb{position:fixed;border-radius:50%;filter:blur(48px);pointer-events:none;z-index:0;opacity:.24;will-change:transform;contain:strict}
-.bg-orb1{width:360px;height:360px;top:-140px;left:-110px;background:#8b5cf6;animation:orbFloat1 15s ease-in-out infinite}
-.bg-orb2{width:300px;height:300px;top:35%;right:-130px;background:#35d6ff;opacity:.14;animation:orbFloat2 19s ease-in-out infinite}
-html[data-theme="light"] .bg-orb{opacity:.10}
-@keyframes orbFloat1{0%,100%{transform:translate(0,0)}50%{transform:translate(35px,45px)}}
-@keyframes orbFloat2{0%,100%{transform:translate(0,0)}50%{transform:translate(-45px,-30px)}}
-.wrap{position:relative;z-index:1;width:min(1040px,calc(100% - 28px));margin:auto;padding:18px 0 60px}
-.nav{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:6px 0 18px}
-.brand{display:flex;align-items:center;gap:11px}
-.mark{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:17px;font-weight:900;background:linear-gradient(145deg,#17142b,#0d1726);border:1px solid rgba(139,92,246,.32);box-shadow:0 0 30px rgba(139,92,246,.14),inset 0 0 20px rgba(139,92,246,.08);flex-shrink:0}
-html[data-theme="light"] .mark{background:linear-gradient(145deg,#efe7ff,#f7fbff)}
-.brand b{display:block;font-size:14px;background:linear-gradient(135deg,var(--text),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
-.brand small{display:block;color:var(--soft);font-size:8px;letter-spacing:.13em;margin-top:2px}
-.nav-right{display:flex;align-items:center;gap:8px}
-.live-pill{display:flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(53,211,153,.24);background:rgba(53,211,153,.09);border-radius:999px;color:var(--green);font-size:9px;font-weight:800}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px rgba(53,211,153,.9)}
-.theme-btn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);display:grid;place-items:center;color:var(--text);font-size:15px;cursor:pointer;flex-shrink:0}
-.theme-btn:hover{border-color:var(--line2)}
-.summary{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:24px;padding:24px;background:var(--panel);box-shadow:var(--shadow);display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;margin-bottom:16px}
-.summary:after{content:"";position:absolute;width:300px;height:300px;left:-140px;top:-190px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 66%);pointer-events:none}
-.eyebrow{position:relative;z-index:1;font-size:9px;color:var(--soft);letter-spacing:.16em;font-weight:900}
-.summary h1{position:relative;z-index:1;margin:8px 0 6px;font-size:clamp(22px,4vw,34px);line-height:1.15;letter-spacing:-.03em}
-.chips{position:relative;z-index:1;display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
-.chip{padding:6px 9px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);font-size:9px;color:var(--muted)}
-.chip b{color:var(--text)}
-.badge-days{display:inline-flex;padding:5px 10px;border-radius:99px;font-size:8.5px;font-weight:800;background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
-.badge-days.warn{background:rgba(245,165,36,.14);color:var(--warn);border-color:transparent}
-.badge-days.crit{background:rgba(242,73,85,.14);color:var(--bad);border-color:transparent}
-.summary-usage{position:relative;z-index:1;min-width:190px;text-align:right}.summary-usage .usage-pct{font-size:30px;font-weight:950;letter-spacing:-.05em;background:linear-gradient(135deg,var(--text),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}.summary-usage small{display:block;color:var(--soft);font-size:8px;margin-top:3px}
-.sub-hero-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.hero-stat{position:relative;overflow:hidden;padding:14px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,var(--panel),var(--panel2));box-shadow:var(--shadow)}.hero-stat:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-35px;bottom:-45px;background:radial-gradient(circle,rgba(53,211,153,.16),transparent 70%);pointer-events:none}.hero-stat .hs-top{display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-size:9px}.hero-stat .hs-top i{font-size:15px}.hero-stat b{display:block;font-size:20px;margin-top:7px}.hero-stat small{color:var(--soft);font-size:8px}.live-conn{color:var(--green)}.live-conn .pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-left:5px;box-shadow:0 0 0 0 rgba(53,211,153,.45);animation:pulse 1.7s infinite}@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(53,211,153,0)}}
-.usage-dashboard{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:center;margin-bottom:18px}.usage-gauge{width:210px;height:210px;position:relative;display:grid;place-items:center;margin:auto}.usage-gauge svg{width:100%;height:100%;transform:rotate(-90deg)}.usage-gauge .track{fill:none;stroke:var(--line);stroke-width:15}.usage-gauge .value{fill:none;stroke:url(#gaugeGrad);stroke-width:15;stroke-linecap:round;transition:stroke-dashoffset .5s ease}.gauge-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center}.gauge-center b{font-size:34px;letter-spacing:-.06em}.gauge-center small{display:block;color:var(--soft);font-size:8px;margin-top:-48px}.usage-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.usage-metric{padding:13px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}.usage-metric small{display:block;color:var(--soft);font-size:8px}.usage-metric b{display:block;font-size:15px;margin-top:5px}.usage-metric.ok b{color:var(--green)}.usage-metric.warn b{color:var(--warn)}@media(max-width:760px){.sub-hero-stats{grid-template-columns:1fr}.usage-dashboard{grid-template-columns:1fr}.usage-gauge{width:185px;height:185px}.usage-metrics{grid-template-columns:1fr 1fr}}
-.tabs{position:relative;z-index:1;display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:16px;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab-btn{padding:10px 16px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font:800 11px Vazirmatn;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.15s}
-.tab-btn i{font-size:14px}
-.tab-btn:hover{color:var(--text);border-color:var(--line2)}
-.tab-btn.on{background:linear-gradient(90deg,var(--accent),#4d7cff);color:#fff;border-color:transparent;box-shadow:0 10px 24px -8px rgba(139,92,246,.5)}
-.tab-panel{display:none}
-.tab-panel.on{display:block;animation:fadeUp .35s ease both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.panel{border:1px solid var(--line);border-radius:20px;background:var(--panel);overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,.12)}
-.panel+.panel{margin-top:13px}
-.phead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
-.phead b{font-size:11px}
-.phead small{display:block;color:var(--soft);font-size:8px;margin-top:3px}
-.pbody{padding:16px}
-.connect-grid{display:grid;grid-template-columns:1fr 200px;gap:13px}
-.url{padding:12px;border-radius:13px;background:var(--panel2);border:1px solid var(--line);direction:ltr;text-align:left;word-break:break-all;color:var(--accent);font:9px/1.8 ui-monospace,Consolas,monospace}
-.copyrow{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}
-.mini-btn{padding:10px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:800 9px Vazirmatn;cursor:pointer}
-.mini-btn:hover{border-color:var(--line2)}
-.quickadd{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:9px}
-.qa-btn{padding:9px 8px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:800 8.5px Vazirmatn;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .15s ease,border-color .15s ease}
-.qa-btn:hover{transform:translateY(-1px);border-color:rgba(139,92,246,.4)}
-.qrbox{padding:13px;border:1px solid var(--line);border-radius:18px;background:var(--panel2);text-align:center}
-.qrbox img{width:170px;height:170px;padding:8px;background:#fff;border-radius:13px}
-.qrbox small{display:block;color:var(--soft);font-size:8px;margin-top:7px}
-.notice{margin-top:11px;padding:11px;border:1px solid rgba(53,214,255,.16);background:rgba(53,214,255,.06);border-radius:13px;color:var(--muted);font-size:8.5px;line-height:2}
-.usage-top{display:flex;justify-content:space-between;align-items:center}
-.usage-number{font-size:22px;font-weight:900}
-.progress{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:12px 0 8px;box-shadow:inset 0 0 0 1px var(--line)}
-.progress i{display:block;height:100%;width:__PCT__%;background:linear-gradient(90deg,var(--accent),var(--cyan));box-shadow:0 0 16px rgba(53,214,255,.16)}
-.progress i.warn{background:linear-gradient(90deg,#f5a524,#f59e0b)}
-.progress i.crit{background:linear-gradient(90deg,#f24955,#ef4444)}
-.usage-note{color:var(--soft);font-size:8.5px}
-.usage-chart-card{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(139,92,246,.045),rgba(255,255,255,.012));overflow:hidden}.chart-head{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border-bottom:1px solid var(--line);font-size:9px;color:var(--muted)}.chart-head span:last-child{color:var(--soft);font-size:8px}.usage-chart-card svg{display:block;width:100%;height:230px}.usage-chart-card .gridline{stroke:var(--line);stroke-width:1}.usage-chart-card .area{fill:url(#usageArea)}.usage-chart-card .line{fill:none;stroke:var(--accent);stroke-width:3;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}.usage-chart-card .point{fill:var(--cyan);stroke:var(--panel);stroke-width:2}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
-.stat{padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--panel2)}
-.stat small{display:block;color:var(--soft);font-size:8px;margin-bottom:5px}
-.stat b{font-size:10.5px}
-.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}
-.fact{padding:11px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);position:relative;cursor:pointer;transition:.15s ease}
-.fact:hover{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06)}
-.fact small{display:block;color:var(--soft);font-size:8px}
-.fact b{display:block;margin-top:5px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fact-copy{position:absolute;top:8px;left:8px;opacity:.4;font-size:9px}
-.howto{counter-reset:step}
-.howto-step{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed var(--line)}
-.howto-step:last-child{border-bottom:0;padding-bottom:0}
-.howto-num{flex:none;width:26px;height:26px;border-radius:9px;display:grid;place-items:center;font-size:11px;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--cyan));color:#fff}
-.howto-txt b{display:block;font-size:10.5px;margin-bottom:3px}
-.howto-txt small{display:block;color:var(--soft);font-size:8.5px;line-height:1.8}
-.apps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.app{padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--panel2);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;text-decoration:none;transition:transform .18s ease,border-color .18s ease}
-.app:hover{transform:translateY(-2px);border-color:rgba(139,92,246,.4)}
-.app-ico{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:15px}
-.app b{display:block;font-size:9.5px;color:var(--text)}
-.app small{color:var(--soft);font-size:7.5px}
-.trust-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-.trust-row span{padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);font-size:8.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
-.footer{position:relative;z-index:1;text-align:center;color:var(--soft);font-size:8px;padding-top:22px}
-.toast{position:fixed;z-index:9;left:50%;bottom:20px;transform:translate(-50%,18px);opacity:0;padding:10px 13px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);box-shadow:0 20px 50px rgba(0,0,0,.25);font-size:9px;transition:.2s;color:var(--text)}
-.toast.show{opacity:1;transform:translate(-50%,0)}
-@media(max-width:760px){.summary{grid-template-columns:1fr}.summary-ring{justify-self:center}.connect-grid{grid-template-columns:1fr}.qrbox{max-width:230px;margin:auto}.stats,.info-grid,.apps{grid-template-columns:1fr 1fr}}
-@media(max-width:480px){.wrap{padding-top:10px}.summary{padding:18px;border-radius:20px}.stats,.info-grid,.apps{grid-template-columns:1fr 1fr}.copyrow{grid-template-columns:1fr}}
-@media(prefers-reduced-motion:reduce){.bg-orb,.tab-panel.on{animation:none!important}}
-@media(max-width:820px),(pointer:coarse){.bg-orb{animation:none!important;filter:blur(24px)}}
-</style></head><body><svg width="0" height="0" style="position:absolute"><defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#35d6ff"/></linearGradient></defs></svg><div class="bg-orb bg-orb1"></div><div class="bg-orb bg-orb2"></div><main class="wrap">
-<div class="nav"><div class="brand"><div class="mark">✦</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div class="nav-right"><div class="live-pill"><span class="dot"></span><span id="status">__STATUS__</span></div><button class="theme-btn" onclick="toggleTheme()" title="تغییر پوسته"><i id="themeIcon" class="ti ti-moon"></i></button></div></div>
-<section class="summary"><div><div class="eyebrow">SECURE PERSONAL ACCESS</div><h1>__LABEL__</h1><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span>__PLAN_CHIP__<span class="chip">IP Limit <b>__IP__</b></span><span class="chip">Connection <b>__CONN__</b></span><span class="badge-days __DAYSCLASS__" id="daysBadge">__DAYS__</span></div></div><div class="summary-usage"><div class="usage-pct" id="summaryPct">__PCT__%</div><small>درصد مصرف فعلی · <span id="updated">در حال بروزرسانی</span></small></div></section>
-<section class="sub-hero-stats">
-  <div class="hero-stat"><div class="hs-top"><span>اتصال‌های فعال</span><i class="ti ti-users live-conn"></i></div><b id="heroConnections">__ACTIVE_CONN__</b><small id="heroConnectionHint">اتصال هم‌زمان</small></div>
-  <div class="hero-stat"><div class="hs-top"><span>مصرف ترافیک</span><i class="ti ti-chart-donut"></i></div><b id="heroTraffic">__USED__</b><small>از __LIMIT__</small></div>
-  <div class="hero-stat"><div class="hs-top"><span>وضعیت سرویس</span><i class="ti ti-shield-check"></i></div><b id="heroStatus">__STATUS__</b><small id="heroUpdated">LIVE</small></div>
-</section>
-<nav class="tabs">
-  <button class="tab-btn on" data-tab="connect" onclick="showTab('connect')"><i class="ti ti-link"></i>اتصال</button>
-  <button class="tab-btn" data-tab="usage" onclick="showTab('usage')"><i class="ti ti-chart-donut"></i>مصرف و جزئیات</button>
-  <button class="tab-btn" data-tab="guide" onclick="showTab('guide')"><i class="ti ti-list-numbers"></i>راهنمای اتصال</button>
-  <button class="tab-btn" data-tab="apps" onclick="showTab('apps')"><i class="ti ti-apps"></i>کلاینت‌ها</button>
-</nav>
-<section class="tab-panel on" id="tab-connect">
-  <div class="panel"><div class="phead"><div><b>لینک اشتراک</b><small>برای کلاینت‌های سازگار</small></div><a class="mini-btn" href="__INFO__" style="text-decoration:none">جزئیات کامل</a></div><div class="pbody">
-    <div class="connect-grid">
-      <div>
-        <div class="url" id="subUrl">__RAW__</div>
-        <div class="copyrow"><button class="mini-btn" onclick="copyText(__RAW_JS__)">کپی لینک</button><button class="mini-btn" onclick="downloadSub()">دریافت فایل</button></div>
-        <div class="quickadd"><a class="qa-btn" href="__QA_V2RAYNG__">➕ v2rayNG</a><a class="qa-btn" href="__QA_HIDDIFY__">➕ Hiddify</a><a class="qa-btn" href="__QA_SINGBOX__">➕ sing-box</a><a class="qa-btn" href="__QA_STREISAND__">➕ Streisand</a></div>
-        <div class="notice">لینک Subscription را داخل کلاینت وارد کنید یا با اسکن QR اضافه کنید. آدرس با دامنه پنل و شبکه Railway هماهنگ می‌ماند.</div>
-      </div>
-      <div class="qrbox"><img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=__QR__" alt="Subscription QR"><small>اسکن برای افزودن سریع</small></div>
-    </div>
-  </div></div>
-  <div class="trust-row"><span>🔒 رمزنگاری TLS/Reality</span><span>⚡ لتنسی پایین</span><span>🛡️ پایش امنیتی ۲۴/۷</span><a class="qa-btn" style="text-decoration:none" href="__SUPPORT__" target="_blank">💬 پشتیبانی</a><button class="qa-btn" onclick="shareLink()">🔗 اشتراک‌گذاری</button></div>
-</section>
-<section class="tab-panel" id="tab-usage">
-  <div class="panel"><div class="phead"><div><b>مصرف و ظرفیت</b><small>نمودار بر اساس داده واقعی سابسکریپشن</small></div><span class="live-pill"><span class="dot"></span> LIVE</span></div><div class="pbody">
-    <div class="usage-dashboard">
-      <div class="usage-gauge"><svg viewBox="0 0 220 220" aria-label="درصد مصرف"><defs><linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--cyan)"/></linearGradient></defs><circle class="track" cx="110" cy="110" r="86"/><circle id="usageGauge" class="value" cx="110" cy="110" r="86" stroke-dasharray="540.35" stroke-dashoffset="540.35"/></svg><div class="gauge-center"><div><b id="pct">__PCT__%</b><small>مصرف ترافیک</small></div></div></div>
-      <div class="usage-metrics">
-        <div class="usage-metric"><small>مصرف شده</small><b id="traffic">__USED__</b></div><div class="usage-metric"><small>باقی‌مانده</small><b id="remaining">__REMAINING__</b></div>
-        <div class="usage-metric ok"><small>اتصال‌های فعال</small><b id="liveConnections">__ACTIVE_CONN__</b></div><div class="usage-metric"><small>محدودیت اتصال</small><b id="connectionLimit">__CONN_LIMIT__</b></div>
-      </div>
-    </div>
-    <div class="usage-chart-card"><div class="chart-head"><span>روند مصرف واقعی</span><span id="usageChartMeta">در انتظار داده</span></div><svg id="usageChart" viewBox="0 0 900 260" preserveAspectRatio="none" aria-label="نمودار مصرف"></svg></div>
-    <div class="stats"><div class="stat"><small>انقضا</small><b id="expiry">__EXPIRES__</b></div><div class="stat"><small>IP Limit</small><b>__IP__</b></div><div class="stat"><small>Connection</small><b>__CONN__</b></div><div class="stat"><small>آخرین بروزرسانی</small><b id="updated2">—</b></div></div>
-  </div></div>
-</section>
-<section class="tab-panel" id="tab-guide">
-  <div class="panel"><div class="phead"><div><b>راهنمای اتصال سریع</b><small>سه قدم تا اتصال</small></div></div><div class="pbody howto">
-    <div class="howto-step"><div class="howto-num">۱</div><div class="howto-txt"><b>اپ مناسب را نصب کن</b><small>یکی از کلاینت‌های پیشنهادی در تب «کلاینت‌ها» را روی دستگاهت نصب کن.</small></div></div>
-    <div class="howto-step"><div class="howto-num">۲</div><div class="howto-txt"><b>لینک اشتراک را وارد کن</b><small>روی «➕ افزودن سریع» بزن یا لینک را کپی/اسکن کن و داخل اپ در بخش Subscription وارد کن.</small></div></div>
-    <div class="howto-step"><div class="howto-num">۳</div><div class="howto-txt"><b>بروزرسانی و اتصال</b><small>لیست کانفیگ‌ها را بروزرسانی (Update) کن، یکی را انتخاب و متصل شو.</small></div></div>
-  </div></div>
-</section>
-<section class="tab-panel" id="tab-apps">
-  <div class="panel"><div class="phead"><div><b>کلاینت‌های پیشنهادی</b><small>Import subscription in one step</small></div></div><div class="pbody">
-    <div class="apps"><a class="app" href="https://github.com/2dust/v2rayNG/releases/latest" target="_blank"><div class="app-ico" style="background:rgba(34,197,139,.14);color:#22c58b">🤖</div><b>v2rayNG</b><small>Android</small></a><a class="app" href="https://github.com/2dust/v2rayN/releases/latest" target="_blank"><div class="app-ico" style="background:rgba(53,214,255,.14);color:#35d6ff">🖥️</div><b>v2rayN</b><small>Desktop</small></a><a class="app" href="https://github.com/hiddify/hiddify-app/releases/latest" target="_blank"><div class="app-ico" style="background:rgba(139,92,246,.14);color:#a997ff">🌐</div><b>Hiddify</b><small>Multi-platform</small></a></div>
-  </div></div>
-</section>
-<div class="footer">VodiWalker · Subscription Center · Live update enabled</div></main><div class="toast" id="toast"></div>
-<script>const raw=__RAW_JS__;function toast(t,icon){const e=document.getElementById('toast');e.innerHTML=(icon||'✓')+' '+t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1700)}async function copyText(v){try{await navigator.clipboard.writeText(v);toast('کپی شد')}catch(e){const x=document.createElement('textarea');x.value=v;document.body.appendChild(x);x.select();document.execCommand('copy');x.remove();toast('کپی شد')}}function copyFact(el){const b=el.querySelector('b');if(b)copyText(b.textContent.trim())}async function shareLink(){if(navigator.share){try{await navigator.share({title:'VodiWalker Subscription',text:'اشتراک اختصاصی من',url:raw})}catch(e){}}else{copyText(raw)}}function downloadSub(){location.href=raw}function fmt(n){if(!n)return'0 B';const u=['B','KB','MB','GB','TB'];let i=0,x=Number(n)||0;while(x>=1024&&i<u.length-1){x/=1024;i++}return(x>=100?Math.round(x):x>=10?x.toFixed(1):x.toFixed(2))+' '+u[i]}function pctCls(p){return p>=90?'crit':(p>=70?'warn':'')}
-function showTab(name){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('on',p.id==='tab-'+name));try{sessionStorage.setItem('vw_sub_tab',name)}catch(e){}}
-function toggleTheme(){const html=document.documentElement;const isLight=html.getAttribute('data-theme')==='light';const next=isLight?'dark':'light';if(next==='light')html.setAttribute('data-theme','light');else html.removeAttribute('data-theme');try{localStorage.setItem('vw_sub_theme',next)}catch(e){}updateThemeIcon();const meta=document.getElementById('themeColorMeta');if(meta)meta.setAttribute('content',next==='light'?'#eef1f4':'#070b13')}
-function updateThemeIcon(){const isLight=document.documentElement.getAttribute('data-theme')==='light';const ic=document.getElementById('themeIcon');if(ic)ic.className=isLight?'ti ti-sun':'ti ti-moon'}
-updateThemeIcon();
-try{const savedTab=sessionStorage.getItem('vw_sub_tab');if(savedTab)showTab(savedTab)}catch(e){}
-function drawUsageChart(history,limit){const el=document.getElementById('usageChart');if(!el)return;const rows=(Array.isArray(history)?history:[]).filter(x=>Number.isFinite(Number(x.used)));if(!rows.length){el.innerHTML='<text x="450" y="130" text-anchor="middle" fill="currentColor" opacity=".45" font-size="14">هنوز داده‌ای برای رسم نمودار ثبت نشده</text>';document.getElementById('usageChartMeta').textContent='بدون داده';return}const w=900,h=260,pad=24;const vals=rows.map(x=>Math.max(0,Number(x.used)||0));const max=Math.max(limit||0,...vals,1);const pts=vals.map((v,i)=>{const x=pad+(i/Math.max(1,vals.length-1))*(w-pad*2);const y=h-pad-(v/max)*(h-pad*2);return [x,y]});const line=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');const area=`${pad},${h-pad} ${line} ${w-pad},${h-pad}`;const last=pts[pts.length-1];const labels=rows.map(x=>new Date(Number(x.ts)*1000).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'}));el.innerHTML=`<defs><linearGradient id="usageArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><line class="gridline" x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}"/><line class="gridline" x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}"/><polygon class="area" points="${area}"/><polyline class="line" points="${line}"/><circle class="point" cx="${last[0]}" cy="${last[1]}" r="5"/>`;document.getElementById('usageChartMeta').textContent=`${rows.length} نقطه · آخرین ${labels[labels.length-1]}`}
-async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*100)):0;const activeConn=Number(d.active_connections||0),connLimit=Number(d.connection_limit||0);document.getElementById('traffic').textContent=lim?fmt(used)+' / '+fmt(lim):fmt(used)+' / نامحدود';document.getElementById('heroTraffic').textContent=fmt(used);document.getElementById('heroConnections').textContent=activeConn;document.getElementById('liveConnections').textContent=activeConn;document.getElementById('connectionLimit').textContent=connLimit?connLimit:'نامحدود';document.getElementById('heroStatus').textContent=d.active?'فعال':'غیرفعال';document.getElementById('heroConnectionHint').textContent=connLimit?('از '+connLimit+' اتصال مجاز'):'اتصال هم‌زمان';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';document.getElementById('pct').textContent=p+'%';document.getElementById('summaryPct').textContent=p+'%';const gauge=document.getElementById('usageGauge');if(gauge)gauge.style.strokeDashoffset=(540.35-(540.35*p/100)).toFixed(2);document.getElementById('liveState').textContent=d.active?'فعال':'غیرفعال';const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;document.getElementById('updated2').textContent=now;drawUsageChart(d.usage_history,lim)}catch(e){}}refresh();setInterval(()=>{if(!document.hidden)refresh()},15000)</script></body></html>"""
-    plan_chip = f'<span class="chip">پلن <b>{safe["plan"]}</b></span>' if safe["plan"] else ""
-    qa_v2rayng = f"v2rayng://install-sub?url={qr}"
-    qa_hiddify = f"hiddify://import/{qr}"
-    qa_singbox = f"sing-box://import-remote-profile?url={qr}"
-    qa_streisand = f"streisand://import/{qr}"
-    replacements={"__LABEL__":safe["label"],"__STATUS__":safe["status"],"__PROTOCOL__":safe["protocol"],"__IP__":safe["ip"],"__CONN__":safe["conn"],"__UUID_SHORT__":escape_html(uuid[:18])+"…","__INFO__":safe["info"],"__RAW__":safe["raw"],"__RAW_JS__":repr(raw_url),"__QR__":qr,"__PCT__":safe["pct"],"__PCTCLASS__":safe["pctclass"],"__USED__":safe["used"],"__LIMIT__":safe["limit"],"__REMAINING__":safe["remaining"],"__EXPIRES__":safe["expires"],"__UUID__":escape_html(uuid),"__NETWORK__":escape_html(str(link.get("network") or "tcp")),"__SECURITY__":escape_html(str(link.get("security") or "none")),"__ADDRESS__":escape_html(str(link.get("address") or host)),"__DAYS__":safe["days"],"__DAYSCLASS__":safe["daysclass"],"__SUPPORT__":safe["support"],"__PLAN_CHIP__":plan_chip,"__ACTIVE_CONN__":str(initial_active_connections),"__CONN_LIMIT__":str(conn_limit) if conn_limit else "نامحدود","__QA_V2RAYNG__":escape_html(qa_v2rayng),"__QA_HIDDIFY__":escape_html(qa_hiddify),"__QA_SINGBOX__":escape_html(qa_singbox),"__QA_STREISAND__":escape_html(qa_streisand)}
-    for k,v in replacements.items(): html=html.replace(k,v)
-    return HTMLResponse(html)
-
-@app.get("/api/subscription/{uuid}")
-async def subscription_api(uuid: str):
-    async with LINKS_LOCK:
-        link = LINKS.get(uuid)
-    if not is_link_allowed(link):
-        raise HTTPException(status_code=404, detail="not found")
     used = int(link.get("used_bytes", 0) or 0)
     limit = int(link.get("limit_bytes", 0) or 0)
-    # Live connections are calculated from the actual relay connection registry.
-    # This is intentionally not cached so the customer sees the current state.
-    # «نفر متصل» = IPهای یکتای آنلاین، نه تعداد socket/session.
-    # یک دستگاه ممکن است هم‌زمان چند WebSocket باز کند؛ شمردن sessionها باعث
-    # نمایش اعداد غیرواقعی مثل 18 نفر برای یک کاربر می‌شد.
-    active_ips = {
-        str(item.get("ip") or "").strip()
-        for item in connections.values()
-        if item.get("uuid") == uuid and str(item.get("ip") or "").strip()
-    }
-    active_connections = len(active_ips)
-    active_sessions = sum(1 for item in connections.values() if item.get("uuid") == uuid)
-    now_ts = time.time()
-    history = SUB_USAGE_HISTORY[uuid]
-    # Keep a sample only when usage changes or enough time has elapsed. This makes
-    # the customer chart reflect actual backend measurements without noisy duplicates.
-    if not history or history[-1]["used"] != used or now_ts - history[-1]["ts"] >= 60:
-        history.append({"ts": now_ts, "used": used, "limit": limit})
-    return {
-        "service": APP_NAME, "uuid": uuid, "label": link.get("label"),
-        "active": bool(link.get("active", True)), "protocol": link.get("protocol"),
-        "traffic_used": used, "traffic_limit": limit,
-        "usage_history": list(history),
-        "traffic_remaining": max(0, limit-used) if limit else None,
-        "active_connections": active_connections,
-        "active_sessions": active_sessions,
-        "active_ips": sorted(active_ips),
-        "connection_limit": int(link.get("connection_limit", 0) or 0),
-        "expires_at": link.get("expires_at"), "ip_limit": int(link.get("ip_limit", 0) or 0),
-        "config_count": max(1, min(40, int(link.get("config_count") or 1))),
-        "subscription": f"/sub/{uuid}", "portal": f"/subscription/{uuid}",
-    }
+    pct = min(100, round((used / limit) * 100, 1)) if limit else 0
+    remaining = max(0, limit - used) if limit else None
+    expires = str(link.get("expires_at") or "نامحدود")
+    conn_limit = int(link.get("connection_limit", 0) or 0)
+    ip_limit = int(link.get("ip_limit", 0) or 0)
+    active = bool(link.get("active", True))
+    active_ips = {str(x.get("ip") or "").strip() for x in connections.values()
+                  if x.get("uuid") == uuid and str(x.get("ip") or "").strip()}
+    active_people = len(active_ips)
+    active_sessions = sum(1 for x in connections.values() if x.get("uuid") == uuid)
+    qr = quote(raw_url, safe="")
 
-# ============================================================
-# SUB ALL
-# ============================================================
+    html = r'''<!doctype html><html lang="fa" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a12"><title>__LABEL__ · VodiWalker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root{--bg:#060810;--card:#0c111b;--card2:#101725;--line:rgba(255,255,255,.08);--text:#f8fafc;--muted:#8792a6;--soft:#59657a;--a:#8b5cf6;--c:#22d3ee;--g:#22c55e;--w:#f59e0b;--r:#ef4444;--shadow:0 24px 80px rgba(0,0,0,.35)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0%,rgba(139,92,246,.18),transparent 30%),radial-gradient(circle at 100% 30%,rgba(34,211,238,.10),transparent 28%),var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif}.wrap{width:min(1120px,calc(100% - 28px));margin:auto;padding:24px 0 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.brand{display:flex;gap:11px;align-items:center}.logo{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#19132e,#101b2d);border:1px solid rgba(139,92,246,.35);font-weight:900;font-size:20px}.brand b{display:block;font-size:14px}.brand small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.live{display:flex;align-items:center;gap:7px;color:var(--g);font-size:9px;font-weight:800;padding:8px 11px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.07);border-radius:999px}.dot{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 12px var(--g)}
+.hero{position:relative;overflow:hidden;border:1px solid var(--line);background:linear-gradient(145deg,rgba(16,23,37,.98),rgba(10,14,24,.98));border-radius:28px;padding:28px;box-shadow:var(--shadow);margin-bottom:14px}.hero:after{content:"";position:absolute;width:340px;height:340px;left:-150px;top:-220px;background:radial-gradient(circle,rgba(139,92,246,.22),transparent 68%);pointer-events:none}.eyebrow{color:var(--soft);font-size:9px;font-weight:900;letter-spacing:.12em}.hero h1{margin:8px 0 6px;font-size:clamp(25px,5vw,42px);letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);font-size:11px;line-height:2;max-width:700px}.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}.chip{padding:7px 10px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:10px;color:var(--muted);font-size:9px}.chip b{color:var(--text)}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.card{border:1px solid var(--line);background:rgba(12,17,27,.96);border-radius:24px;box-shadow:var(--shadow);overflow:hidden}.head{padding:17px 19px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.head b{font-size:13px}.head small{display:block;color:var(--soft);font-size:8px;margin-top:3px}.body{padding:19px}
+.usage{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:center}.gauge{width:210px;height:210px;margin:auto;border-radius:50%;background:conic-gradient(var(--a) calc(var(--pct)*1%),rgba(255,255,255,.07) 0);position:relative;display:grid;place-items:center;box-shadow:0 0 55px rgba(139,92,246,.10)}.gauge:before{content:"";position:absolute;inset:14px;border-radius:50%;background:var(--card);border:1px solid var(--line)}.gauge-center{position:relative;text-align:center}.gauge-center b{font-size:37px;letter-spacing:-.06em}.gauge-center small{display:block;color:var(--soft);font-size:9px;margin-top:2px}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{padding:13px;border:1px solid var(--line);border-radius:15px;background:var(--card2)}.metric small{display:block;color:var(--soft);font-size:8px}.metric b{display:block;margin-top:6px;font-size:15px}.metric .ok{color:var(--g)}.metric .cyan{color:var(--c)}.meter{margin-top:12px;height:9px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}.meter i{display:block;height:100%;width:calc(var(--pct)*1%);border-radius:inherit;background:linear-gradient(90deg,var(--a),var(--c));transition:width .5s ease}.actions{display:flex;gap:8px;margin-top:14px}.btn{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 13px;background:var(--card2);color:var(--text);font-family:inherit;font-weight:800;font-size:10px;cursor:pointer;text-decoration:none;text-align:center}.btn.primary{background:linear-gradient(135deg,var(--a),#6366f1);border-color:transparent}.url{direction:ltr;text-align:left;word-break:break-all;padding:12px;border:1px dashed var(--line);border-radius:12px;background:#080c14;color:#9ca9bd;font:9px monospace}.qr{display:grid;place-items:center;margin-bottom:13px}.qr img{width:165px;height:165px;padding:8px;background:white;border-radius:16px}
+.livebox{display:flex;align-items:center;justify-content:space-between;padding:14px;border:1px solid rgba(34,197,94,.18);background:rgba(34,197,94,.055);border-radius:15px;margin-bottom:10px}.livebox b{font-size:24px;color:var(--g)}.livebox small{display:block;color:var(--soft);font-size:8px}.session{color:var(--muted);font-size:9px}.status{display:inline-flex;padding:6px 9px;border-radius:9px;background:rgba(34,197,94,.10);color:var(--g);font-size:8px;font-weight:800}.status.off{background:rgba(239,68,68,.1);color:var(--r)}.chart{height:150px;position:relative}.chart svg{width:100%;height:100%;overflow:visible}.chart .line{fill:none;stroke:var(--c);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.chart .area{fill:url(#area)}.chart text{fill:var(--soft);font-size:8px}.note{padding:12px;border-radius:13px;background:rgba(255,255,255,.025);color:var(--muted);font-size:9px;line-height:2;margin-top:10px}.footer{text-align:center;color:var(--soft);font-size:8px;margin-top:18px}
+@media(max-width:800px){.grid,.usage{grid-template-columns:1fr}.gauge{width:185px;height:185px}.metrics{grid-template-columns:1fr 1fr}.hero{padding:22px}}@media(max-width:500px){.metrics{grid-template-columns:1fr}.wrap{width:min(100% - 18px,1120px);padding-top:14px}.hero{border-radius:21px}.card{border-radius:20px}}
+</style></head><body><main class="wrap">
+<header class="top"><div class="brand"><div class="logo">V</div><div><b>VodiWalker</b><small>SUBSCRIPTION CENTER</small></div></div><div class="live"><i class="dot"></i><span id="liveState">سرویس آنلاین</span></div></header>
+<section class="hero"><div class="eyebrow">PRIVATE SUBSCRIPTION</div><h1>__LABEL__</h1><p>مدیریت اشتراک، میزان مصرف و اتصال‌های فعال در یک صفحه. اطلاعات مصرف و وضعیت اتصال مستقیماً از سرویس دریافت می‌شود.</p><div class="chips"><span class="chip">پروتکل <b>__PROTOCOL__</b></span><span class="chip">انقضا <b id="expires">__EXPIRES__</b></span><span class="chip">وضعیت <b id="heroStatus">__STATUS__</b></span></div></section>
+<section class="grid"><div class="card"><div class="head"><div><b>مصرف اشتراک</b><small>نمایش مصرف واقعی ثبت‌شده روی سرویس</small></div><span id="updated" style="color:var(--soft);font-size:8px">—</span></div><div class="body"><div class="usage"><div class="gauge" id="gauge" style="--pct:__PCT__"><div class="gauge-center"><b id="pct">__PCT__%</b><small>مصرف شده</small></div></div><div><div class="metrics"><div class="metric"><small>مصرف شده</small><b class="cyan" id="used">__USED__</b></div><div class="metric"><small>باقی‌مانده</small><b class="ok" id="remaining">__REMAINING__</b></div><div class="metric"><small>سقف اشتراک</small><b id="limit">__LIMIT__</b></div><div class="metric"><small>درصد مصرف</small><b id="summaryPct">__PCT__%</b></div></div><div class="meter"><i id="meter"></i></div><div class="note">عدد مصرف از شمارنده واقعی سرویس خوانده می‌شود؛ با هر بار افزایش ترافیک، مقدار و نمودار نیز به‌روزرسانی می‌شوند.</div></div></div></div></div>
+<div class="card"><div class="head"><div><b>اتصال‌های فعال</b><small>کاربران آنلاین همین لحظه</small></div><span class="status" id="statusBadge">فعال</span></div><div class="body"><div class="livebox"><div><b id="liveConnections">__ACTIVE_CONN__</b><small>دستگاه / IP یکتا</small></div><div style="text-align:left"><span class="session" id="sessions">__ACTIVE_SESSIONS__ session</span><br><span class="session" id="connectionLimit">__CONN_LIMIT__</span></div></div><div class="metric"><small>محدودیت IP</small><b id="ipLimit">__IP_LIMIT__</b></div><div class="note">برای جلوگیری از نمایش عدد غیرواقعی، یک IP فقط یک کاربر فعال محسوب می‌شود؛ تعداد Sessionهای فنی جداگانه نمایش داده می‌شود.</div><div class="actions"><button class="btn primary" onclick="copyLink()"><i class="ti ti-copy"></i> کپی لینک اشتراک</button><a class="btn" href="__INFO_URL__">اطلاعات سرویس</a></div></div></div></section>
+<section class="card" style="margin-top:14px"><div class="head"><div><b>روند مصرف</b><small>تغییرات ثبت‌شده مصرف اشتراک</small></div><span id="chartState" style="color:var(--soft);font-size:8px">در حال همگام‌سازی</span></div><div class="body"><div class="chart" id="chart"><svg viewBox="0 0 900 150" preserveAspectRatio="none"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".22"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient></defs><path id="areaPath" class="area"></path><path id="linePath" class="line"></path><text x="895" y="145" text-anchor="end">زمان</text></svg></div></div></section>
+<section class="card" style="margin-top:14px"><div class="head"><div><b>لینک اصلی اشتراک</b><small>برای وارد کردن در کلاینت سازگار</small></div></div><div class="body"><div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=__QR__" alt="QR"></div><div class="url" id="subUrl">__RAW__</div><div class="actions"><button class="btn primary" onclick="copyLink()">کپی لینک</button><a class="btn" href="__RAW_URL__">باز کردن لینک</a></div></div></section>
+<div class="footer">VodiWalker · وضعیت و مصرف به‌صورت زنده از سرویس خوانده می‌شود</div></main>
+<script>
+const SUB_URL=__RAW_JS__;
+function fmt(n){n=Number(n)||0;if(!n)return'0 B';const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return(n>=100?Math.round(n):n>=10?n.toFixed(1):n.toFixed(2))+' '+u[i]}
+async function copyLink(){try{await navigator.clipboard.writeText(SUB_URL);alert('لینک اشتراک کپی شد ✓')}catch(e){prompt('لینک اشتراک:',SUB_URL)}}
+function drawChart(history,limit){const line=document.getElementById('linePath'),area=document.getElementById('areaPath');if(!Array.isArray(history)||history.length<2){line.setAttribute('d','M 0 125 L 900 125');area.setAttribute('d','M 0 125 L 900 125 L 900 150 L 0 150 Z');document.getElementById('chartState').textContent='هنوز داده تاریخی کافی نیست';return}const vals=history.map(x=>Number(x.used)||0),max=Math.max(limit||0,...vals,1),pts=vals.map((v,i)=>{const x=i*(900/Math.max(1,vals.length-1));const y=130-(v/max)*105;return[x,y]});const d=pts.map((p,i)=>(i?'L':'M')+' '+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');line.setAttribute('d',d);area.setAttribute('d',d+' L '+pts[pts.length-1][0].toFixed(1)+' 150 L 0 150 Z');document.getElementById('chartState').textContent=history.length+' نمونه ثبت‌شده'}
+async function refresh(){try{const r=await fetch('/api/subscription/__UUID__',{cache:'no-store'});if(!r.ok)return;const d=await r.json();const lim=Number(d.traffic_limit||0),used=Number(d.traffic_used||0),p=lim?Math.min(100,Math.round(used/lim*1000)/10):0;const gauge=document.getElementById('gauge');gauge.style.setProperty('--pct',p);document.getElementById('pct').textContent=p+'%';document.getElementById('summaryPct').textContent=p+'%';document.getElementById('used').textContent=fmt(used);document.getElementById('limit').textContent=lim?fmt(lim):'نامحدود';document.getElementById('remaining').textContent=lim?fmt(Math.max(0,lim-used)):'نامحدود';document.getElementById('meter').style.width=p+'%';const active=Number(d.active_connections||0);document.getElementById('liveConnections').textContent=active;document.getElementById('sessions').textContent=Number(d.active_sessions||0)+' session';document.getElementById('connectionLimit').textContent=Number(d.connection_limit||0)?'حداکثر '+d.connection_limit+' اتصال':'بدون محدودیت اتصال';document.getElementById('ipLimit').textContent=Number(d.ip_limit||0)?'حداکثر '+d.ip_limit+' IP':'بدون محدودیت';document.getElementById('heroStatus').textContent=d.active?'فعال':'غیرفعال';document.getElementById('liveState').textContent=d.active?'سرویس آنلاین':'سرویس غیرفعال';document.getElementById('statusBadge').textContent=d.active?'فعال':'غیرفعال';document.getElementById('statusBadge').classList.toggle('off',!d.active);const now=new Date().toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});document.getElementById('updated').textContent=now;drawChart(d.usage_history,lim)}catch(e){document.getElementById('chartState').textContent='همگام‌سازی ناموفق'}}
+refresh();setInterval(()=>{if(!document.hidden)refresh()},10000);
+</script></body></html>'''
+    replacements={
+      '__LABEL__':escape_html(label),'__PROTOCOL__':escape_html(protocol),'__EXPIRES__':escape_html(expires[:19]),
+      '__STATUS__':'فعال' if active else 'غیرفعال','__PCT__':str(pct),'__USED__':escape_html(fmt_bytes(used)),
+      '__REMAINING__':escape_html(fmt_bytes(remaining) if remaining is not None else 'نامحدود'),
+      '__LIMIT__':escape_html(fmt_bytes(limit) if limit else 'نامحدود'),'__ACTIVE_CONN__':str(active_people),
+      '__ACTIVE_SESSIONS__':str(active_sessions),'__CONN_LIMIT__':('حداکثر '+str(conn_limit)+' اتصال') if conn_limit else 'بدون محدودیت اتصال',
+      '__IP_LIMIT__':('حداکثر '+str(ip_limit)+' IP') if ip_limit else 'بدون محدودیت','__RAW__':escape_html(raw_url),
+      '__RAW_URL__':escape_html(raw_url),'__INFO_URL__':escape_html(info_url),'__QR__':qr,'__UUID__':escape_html(uuid),
+      '__RAW_JS__':repr(raw_url)
+    }
+    for k,v in replacements.items(): html=html.replace(k,v)
+    return HTMLResponse(html)
 
 @app.get("/sub-all")
 async def subscription_all(
