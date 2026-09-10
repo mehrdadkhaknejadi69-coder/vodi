@@ -1,4 +1,3 @@
-
 LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl" id="htmlRoot">
 <head>
@@ -95,6 +94,22 @@ html[dir="ltr"] .toggle-eye{left:auto;right:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin .7s linear infinite}
 .foot{margin-top:22px;text-align:center;font-size:11.5px;color:var(--sub2)}
+.admin-reg-row{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);text-align:center}
+.admin-reg-btn{width:100%;background:rgba(255,255,255,.03);border:1px dashed var(--line2);color:var(--sub);padding:11px;border-radius:12px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.admin-reg-btn:hover{color:var(--text);border-color:var(--accent);background:rgba(168,85,247,.07)}
+.areg-overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(4,2,10,.72);backdrop-filter:blur(3px);padding:18px}
+.areg-overlay.show{display:flex}
+.areg-box{width:100%;max-width:420px;max-height:88vh;overflow:auto;padding:24px;border-radius:20px;background:#100a1e;border:1px solid var(--line2);box-shadow:0 40px 100px -20px rgba(0,0,0,.7);animation:rise .35s ease both}
+.areg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:16px}
+.areg-badge{display:inline-flex;align-items:center;gap:6px;font-size:9.5px;font-weight:800;color:#c9a8ff;background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.25);padding:5px 10px;border-radius:999px;margin-bottom:9px}
+.areg-head h3{font-size:17px;font-weight:900;margin:0 0 6px}
+.areg-head p{font-size:11.5px;color:var(--sub);line-height:1.8;margin:0;max-width:300px}
+.areg-close{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--sub);width:32px;height:32px;border-radius:10px;flex-shrink:0;display:grid;place-items:center}
+.areg-close:hover{color:var(--text)}
+.areg-msg{font-size:12px;border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.8}
+.areg-msg.ok{background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.28);color:#7cf0a8}
+.areg-msg.err{background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.30);color:#ff9b9b}
+.areg-hint{margin-top:14px;font-size:10.5px;color:var(--sub2);line-height:1.9;text-align:center}
 @media(max-width:480px){h1{font-size:24px}.card{padding:22px 18px}.login-status{font-size:7.5px}.security-strip span{font-size:7.5px}}
 @media (prefers-reduced-motion: reduce){
   .grid-bg:before,.scanline,.ambient-orb,.dot,.login-card-glow,.orbit-ring,.orbit-ring2,.badge-glow,.login-status .live,.wrap{animation:none!important}
@@ -160,6 +175,18 @@ input.tpl-switch:checked:after{right:18px}
 .admin-card-foot .admin-login{font-size:10.5px;color:var(--sub2)}
 .admin-card-foot .row-actions{gap:6px}
 .admins-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:14px;padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,rgba(124,92,255,.11),rgba(57,214,255,.035));box-shadow:var(--shadow-sm)}.admins-hero h2{font-size:18px;margin:0 0 5px}.admins-hero p{font-size:10px;color:var(--sub);margin:0;line-height:1.9}.admins-summary{display:flex;gap:8px;flex-wrap:wrap}.admins-summary .sum{min-width:92px;padding:11px 13px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.025);text-align:center}.admins-summary b{display:block;font-size:18px}.admins-summary small{display:block;color:var(--sub2);font-size:8px;margin-top:3px}.admin-card{min-height:188px;display:flex;flex-direction:column}.admin-card-top{padding-bottom:13px;border-bottom:1px dashed var(--line)}.admin-id{flex:1}.admin-avatar{position:relative;overflow:hidden}.admin-avatar:after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);transform:translateX(-130%);transition:transform .55s ease}.admin-card:hover .admin-avatar:after{transform:translateX(130%)}.admin-perm-row{min-height:45px;align-content:flex-start}.admin-perm-chip{transition:.15s ease}.admin-perm-chip:hover{border-color:var(--line2);color:var(--text)}.admin-card-foot{margin-top:auto}.admin-login{direction:ltr;text-align:left}.admin-actions-label{display:none}.admin-card-foot .row-actions{gap:8px}.admin-card-foot .iconbtn{width:38px;height:34px;border-radius:11px;font-size:15px;background:linear-gradient(145deg,var(--panel2),rgba(124,92,255,.08));border-color:var(--line2);box-shadow:0 7px 18px rgba(0,0,0,.10)}.admin-card-foot .iconbtn.danger{color:var(--bad)}.admin-card-foot .iconbtn.power{color:var(--accent)}.admin-card-foot .iconbtn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(124,92,255,.18)}.access-command-copy{min-width:0}.command-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;border:1px solid rgba(124,92,255,.28);background:rgba(124,92,255,.10);color:var(--accent);font-size:9px;font-weight:900;letter-spacing:.08em}.access-command-copy h2{font-size:22px;margin:12px 0 7px;letter-spacing:-.02em}.access-command-copy p{max-width:760px}.command-points{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}.command-points span{display:inline-flex;align-items:center;gap:5px;padding:6px 9px;border:1px solid var(--line);border-radius:9px;background:rgba(255,255,255,.025);font-size:9px;color:var(--sub)}.command-points i{color:var(--good)}.admin-directory{overflow:hidden}.directory-live{display:inline-flex;align-items:center;gap:6px;font-size:9px;color:var(--good);font-weight:800}.directory-live i{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 4px rgba(34,197,139,.12)}.admin-directory .panel-head{border-bottom:1px solid var(--line)}@media(max-width:700px){.access-command-copy h2{font-size:18px}.command-points{display:grid;grid-template-columns:1fr}}.admin-login-block{display:flex;flex-direction:column;gap:4px}.admin-login-label{font-size:8px;color:var(--sub2)}.admin-card{position:relative;overflow:hidden}.admin-card:before{content:"";position:absolute;inset:0 0 auto 0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);opacity:.7}.admin-card.is-owner:before{background:linear-gradient(90deg,#f5a524,transparent)}.feature-lock{text-align:center;padding:16px 6px 8px}.feature-lock-icon{width:68px;height:68px;margin:0 auto 14px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(145deg,rgba(124,92,255,.18),rgba(53,214,255,.08));border:1px solid rgba(124,92,255,.28);font-size:28px;color:var(--accent)}.feature-lock h3{margin:0 0 8px;font-size:18px}.feature-lock p{margin:0 auto;max-width:520px;line-height:2;color:var(--sub);font-size:11px}.feature-lock-note{display:inline-flex;gap:7px;align-items:center;margin-top:16px;padding:8px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:9px;color:var(--sub2)}@media(max-width:700px){.admins-hero{grid-template-columns:1fr}.admins-summary{justify-content:flex-start}}
+.areq-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);margin-bottom:10px}
+.areq-row:last-child{margin-bottom:0}
+.areq-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.areq-name{font-weight:800;font-size:12.5px}
+.areq-meta{font-size:10px;color:var(--sub2);display:flex;gap:10px;flex-wrap:wrap}
+.areq-meta span{display:inline-flex;align-items:center;gap:4px}
+.areq-note{font-size:10.5px;color:var(--sub);margin-top:2px}
+.areq-actions{display:flex;gap:8px;flex-shrink:0}
+.areq-empty{text-align:center;padding:22px 10px;color:var(--sub2);font-size:11px}
+.areq-status{font-size:9px;font-weight:800;padding:4px 9px;border-radius:999px}
+.areq-status.approved{background:rgba(34,197,94,.10);color:#7cf0a8;border:1px solid rgba(34,197,94,.25)}
+.areq-status.rejected{background:rgba(239,68,68,.10);color:#ff9b9b;border:1px solid rgba(239,68,68,.25)}
 @media(max-width:700px){.admin-grid{grid-template-columns:1fr}}
 </style></head>
 <body>
@@ -212,8 +239,37 @@ input.tpl-switch:checked:after{right:18px}
       <button class="btn-main" type="submit" id="submitBtn"><i class="ti ti-login-2"></i><span data-i18n="submit"></span></button>
     </form>
     <div class="security-strip"><span><i class="ti ti-shield-check"></i>Protected Session</span><span><i class="ti ti-lock"></i>Secure Cookie</span><span><i class="ti ti-activity"></i>System Monitor</span></div>
+    <div class="admin-reg-row"><button type="button" class="admin-reg-btn" onclick="openAdminReg()"><i class="ti ti-user-plus"></i><span data-i18n="adminRegBtn"></span></button></div>
   </div>
   <div class="foot">VodiWalker Control Center &copy; <span data-i18n="rights"></span></div>
+</div>
+
+<div class="areg-overlay" id="aregOverlay" onclick="if(event.target===this)closeAdminReg()">
+  <div class="areg-box">
+    <div class="areg-head">
+      <div>
+        <div class="areg-badge"><i class="ti ti-user-shield"></i><span data-i18n="adminRegBadge"></span></div>
+        <h3 data-i18n="adminRegTitle"></h3>
+        <p data-i18n="adminRegDesc"></p>
+      </div>
+      <button type="button" class="areg-close" onclick="closeAdminReg()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="field">
+      <label data-i18n="adminRegNameLabel"></label>
+      <div class="inp"><input type="text" id="aregName" data-i18n-placeholder="adminRegNamePh"><i class="ti ti-id i-lead"></i></div>
+    </div>
+    <div class="field">
+      <label data-i18n="adminRegTgLabel"></label>
+      <div class="inp"><input type="text" id="aregTg" dir="ltr" data-i18n-placeholder="adminRegTgPh"><i class="ti ti-brand-telegram i-lead"></i></div>
+    </div>
+    <div class="field">
+      <label data-i18n="adminRegNoteLabel"></label>
+      <div class="inp"><input type="text" id="aregNote" data-i18n-placeholder="adminRegNotePh"><i class="ti ti-message i-lead"></i></div>
+    </div>
+    <div id="aregMsg" class="areg-msg" style="display:none"></div>
+    <button class="btn-main" type="button" id="aregSubmitBtn" onclick="submitAdminReg()"><i class="ti ti-send"></i><span data-i18n="adminRegSubmit"></span></button>
+    <p class="areg-hint" data-i18n="adminRegHint"></p>
+  </div>
 </div>
 
 <script>
@@ -227,7 +283,22 @@ var I18N = {
     passLabel: "رمز عبور",
     remember: "مرا به خاطر بسپار",
     submit: "ورود به پنل",
-    rights: "همه‌ی حقوق محفوظ است"
+    rights: "همه‌ی حقوق محفوظ است",
+    adminRegBtn: "ثبت‌نام ادمینی",
+    adminRegBadge: "درخواست همکاری",
+    adminRegTitle: "ثبت‌نام ادمینی VodiWalker",
+    adminRegDesc: "اطلاعاتت رو بفرست، مالک پنل درخواستت رو بررسی می‌کنه و اگر تایید بشه، نام کاربری و رمز از طریق تلگرام برات ارسال می‌شه.",
+    adminRegNameLabel: "نام و نام خانوادگی",
+    adminRegNamePh: "مثلاً: علی رضایی",
+    adminRegTgLabel: "آیدی تلگرام",
+    adminRegTgPh: "@username",
+    adminRegNoteLabel: "توضیح (اختیاری)",
+    adminRegNotePh: "چرا می‌خوای ادمین بشی؟",
+    adminRegSubmit: "ارسال درخواست",
+    adminRegHint: "پس از تایید مالک، اطلاعات ورود از طریق آیدی تلگرامی که وارد کردی برایت ارسال خواهد شد.",
+    adminRegSent: "درخواست شما ثبت شد ✓ منتظر تایید مالک پنل بمانید.",
+    adminRegNameErr: "نام و نام خانوادگی را کامل وارد کنید",
+    adminRegTgErr: "آیدی تلگرام معتبر وارد کنید"
   },
   en: {
     title: "Login | VodiWalker",
@@ -238,7 +309,22 @@ var I18N = {
     passLabel: "Password",
     remember: "Remember me",
     submit: "Sign in",
-    rights: "All rights reserved"
+    rights: "All rights reserved",
+    adminRegBtn: "Register as admin",
+    adminRegBadge: "Collaboration request",
+    adminRegTitle: "VodiWalker admin registration",
+    adminRegDesc: "Send your details. The panel owner will review your request and, if approved, send you a username and password via Telegram.",
+    adminRegNameLabel: "Full name",
+    adminRegNamePh: "e.g. John Smith",
+    adminRegTgLabel: "Telegram ID",
+    adminRegTgPh: "@username",
+    adminRegNoteLabel: "Note (optional)",
+    adminRegNotePh: "Why do you want to be an admin?",
+    adminRegSubmit: "Send request",
+    adminRegHint: "Once approved by the owner, your login details will be sent to the Telegram ID you provided.",
+    adminRegSent: "Your request was submitted ✓ wait for the owner's approval.",
+    adminRegNameErr: "Please enter your full name",
+    adminRegTgErr: "Please enter a valid Telegram ID"
   }
 };
 function applyLang(lang){
@@ -290,6 +376,51 @@ document.getElementById('loginForm').addEventListener('submit', function(){
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2 spin"></i>';
 });
+function curLang(){ try{ return localStorage.getItem('vw_lang') || 'fa'; }catch(e){ return 'fa'; } }
+function openAdminReg(){
+  document.getElementById('aregMsg').style.display = 'none';
+  document.getElementById('aregOverlay').classList.add('show');
+}
+function closeAdminReg(){
+  document.getElementById('aregOverlay').classList.remove('show');
+}
+function aregShowMsg(text, ok){
+  var el = document.getElementById('aregMsg');
+  el.textContent = text;
+  el.className = 'areg-msg ' + (ok ? 'ok' : 'err');
+  el.style.display = 'block';
+}
+async function submitAdminReg(){
+  var d = I18N[curLang()];
+  var name = document.getElementById('aregName').value.trim();
+  var tg = document.getElementById('aregTg').value.trim().replace(/^@/, '');
+  var note = document.getElementById('aregNote').value.trim();
+  if(name.length < 3){ aregShowMsg(d.adminRegNameErr, false); return; }
+  if(tg.length < 3){ aregShowMsg(d.adminRegTgErr, false); return; }
+  var btn = document.getElementById('aregSubmitBtn');
+  btn.disabled = true;
+  var originalHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i>';
+  try{
+    var res = await fetch('/api/admin-requests', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({full_name: name, telegram_id: tg, note: note})
+    });
+    var data = {};
+    try{ data = await res.json(); }catch(e){}
+    if(!res.ok) throw new Error(data.detail || 'خطا');
+    aregShowMsg(d.adminRegSent, true);
+    document.getElementById('aregName').value = '';
+    document.getElementById('aregTg').value = '';
+    document.getElementById('aregNote').value = '';
+  }catch(e){
+    aregShowMsg(e.message || 'خطا', false);
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
 </script>
 </body>
 </html>
@@ -673,6 +804,7 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
     <div class="tabnav" id="tabnav">
       <div class="tab on" data-pg="overview"><i class="ti ti-layout-dashboard"></i><span data-i18n="nav_overview">داشبورد</span></div>
       <div class="tab" data-pg="links"><i class="ti ti-network"></i><span data-i18n="nav_links">اینباندها</span><span class="bd" id="nb-links">0</span></div>
+      <div class="tab" data-pg="clientmgr"><i class="ti ti-user-plus"></i><span data-i18n="nav_clientmgr">ساخت کلاینت</span></div>
       <div class="tab" data-pg="categories"><i class="ti ti-category"></i><span data-i18n="nav_categories">دسته‌بندی‌ها</span></div>
       <div class="tab" data-pg="subgroups"><i class="ti ti-folders"></i><span data-i18n="nav_subgroups">گروه‌های ساب</span><span class="bd" id="nb-subs">0</span></div>
       <div class="tab tab-locked" data-pg="plans" title="در نسخه‌های بعد فعال می‌شود"><i class="ti ti-lock"></i><span data-i18n="nav_plans">پلن‌های فروش</span><span class="bd">بعداً</span></div>
@@ -755,6 +887,20 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
       <div class="empty" id="linksEmpty" style="display:none"><i class="ti ti-inbox"></i>کانفیگی یافت نشد</div>
     </div>
 
+    <!-- CLIENT MANAGER (بخش جدای ساخت کلاینت از روی اینباند) -->
+    <div class="page" id="pg-clientmgr">
+      <div class="pg-head"><div><div class="eyebrow"><span class="live-dot"></span> VODIWALKER · CLIENT MANAGER</div><h1>ساخت کلاینت</h1><p>یک اینباند را انتخاب کن و از روی همان کلاینت‌های واقعی (زیرمجموعه) بساز؛ بدون نیاز به رفتن به صفحه اینباندها.</p></div>
+        <div class="toolbar"><button class="btn" onclick="loadClientManager()"><i class="ti ti-refresh"></i>بروزرسانی</button></div>
+      </div>
+      <div class="card" style="padding:18px;margin-bottom:14px">
+        <div class="grp"><label>انتخاب اینباند</label>
+          <select class="sel" id="cmInboundSelect" style="width:100%" onchange="loadClientManagerClients(this.value)"><option value="">— انتخاب کنید —</option></select>
+        </div>
+        <div id="cmInboundInfo"></div>
+      </div>
+      <div id="cmBody"></div>
+    </div>
+
     <!-- CATEGORIES -->
     <div class="page" id="pg-categories">
       <div class="pg-head"><div><h1>دسته‌بندی‌ها</h1><p>پیش‌فرض‌های حجم، انقضا و محدودیت برای گروه‌های کانفیگ</p></div>
@@ -803,6 +949,7 @@ body{background:radial-gradient(900px 500px at 75% -10%,rgba(124,92,255,.10),tra
         <div class="access-command-copy"><div class="command-badge"><i class="ti ti-shield-lock"></i> مدیریت حساب‌ها</div><h2>مدیریت کامل ادمین‌ها</h2><p>حساب اصلی پنل دسترسی کامل دارد و برای هر ادمین می‌توان دسترسی‌های موردنیاز را جداگانه تعیین کرد. وضعیت هر حساب و آخرین ورود نیز از همین بخش قابل بررسی است.</p><div class="command-points"><span><i class="ti ti-check"></i> تفکیک دسترسی</span><span><i class="ti ti-check"></i> ثبت آخرین ورود</span><span><i class="ti ti-check"></i> امنیت حساب‌ها</span></div></div>
         <div class="admins-summary" id="adminsSummary"><div class="sum"><b id="adminTotal">—</b><small>حساب مدیریتی</small></div><div class="sum"><b id="adminActive">—</b><small>حساب فعال</small></div><div class="sum"><b id="adminOwner">1</b><small>مالک پنل</small></div></div>
       </div>
+      <div class="card admin-directory" id="adminReqCard" style="margin-bottom:14px;display:none"><div class="panel-head"><div><b>درخواست‌های ثبت‌نام ادمینی</b><small>افرادی که از صفحه ورود درخواست همکاری داده‌اند؛ بررسی کن و تصمیم بگیر.</small></div><span class="command-badge" id="adminReqBadge">۰ درخواست</span></div><div id="adminReqBody" style="padding:14px 18px"></div></div>
       <div class="card admin-directory"><div class="panel-head"><div><b>فهرست ادمین‌ها</b><small>وضعیت، دسترسی و فعالیت هر ادمین را از یکجا بررسی و مدیریت کن.</small></div><span class="directory-live"><i></i> کنترل فعال</span></div><div class="admin-grid" id="adminsBody"></div></div>
     </div>
 
@@ -970,8 +1117,8 @@ function gotoPage(pg){
   CURRENT_PAGE = pg;
   updatePageTitle(pg);
   document.getElementById('app').classList.remove('sb-open');
-  const loaders = {overview:refreshOverview, links:loadLinks, categories:loadCategories, subgroups:loadSubGroups,
-    reports:loadReports, admins:loadAdmins, activity:loadActivity, messages:loadMessages, settings:()=>{loadSettings();loadDiagnostics();}};
+  const loaders = {overview:refreshOverview, links:loadLinks, clientmgr:loadClientManager, categories:loadCategories, subgroups:loadSubGroups,
+    reports:loadReports, admins:()=>{loadAdmins();loadAdminRequests();}, activity:loadActivity, messages:loadMessages, settings:()=>{loadSettings();loadDiagnostics();}};
   if(loaders[pg]) loaders[pg]();
 }
 
@@ -1038,10 +1185,11 @@ function toggleSidebar(){
 var DASH_I18N = {
   fa: {
     dir:'rtl', brand:'VodiWalker',
-    nav_overview:'داشبورد', nav_links:'اینباندها', nav_categories:'دسته‌بندی‌ها', nav_subgroups:'گروه‌های ساب',
+    nav_overview:'داشبورد', nav_links:'اینباندها', nav_clientmgr:'ساخت کلاینت', nav_categories:'دسته‌بندی‌ها', nav_subgroups:'گروه‌های ساب',
     nav_plans:'پلن‌های فروش', nav_reports:'گزارش‌ها', nav_admins:'ادمین‌ها', nav_activity:'فعالیت‌ها', nav_messages:'پیام‌ها', nav_settings:'تنظیمات',
     pt_overview:'وضعیت لحظه‌ای سرویس، کانفیگ‌ها و ربات فروش',
     pt_links:'مدیریت حرفه‌ای اینباندها، کلاینت‌ها و لینک‌های اشتراک',
+    pt_clientmgr:'ساخت کلاینت واقعی از روی اینباند دلخواه، جدا از صفحه اینباندها',
     pt_categories:'پیش‌فرض‌های حجم، انقضا و محدودیت برای گروه‌های کانفیگ',
     pt_subgroups:'ترکیب چند کانفیگ در یک لینک اشتراک واحد',
     pt_plans:'پلن‌هایی که در ربات فروش تلگرام نمایش داده می‌شوند',
@@ -1053,10 +1201,11 @@ var DASH_I18N = {
   },
   en: {
     dir:'ltr', brand:'VodiWalker',
-    nav_overview:'Overview', nav_links:'Inbounds', nav_categories:'Categories', nav_subgroups:'Sub Groups',
+    nav_overview:'Overview', nav_links:'Inbounds', nav_clientmgr:'Create Client', nav_categories:'Categories', nav_subgroups:'Sub Groups',
     nav_plans:'Sale Plans', nav_reports:'Reports', nav_admins:'Admins', nav_activity:'Activity', nav_messages:'Messages', nav_settings:'Settings',
     pt_overview:'Live status of the service, configs and sales bot',
     pt_links:'Manage inbounds, clients and subscription links',
+    pt_clientmgr:'Create a real client from any inbound, separate from the inbounds page',
     pt_categories:'Default traffic, expiry and IP-limit presets for config groups',
     pt_subgroups:'Combine several configs into one subscription link',
     pt_plans:'Plans shown in the Telegram sales bot',
@@ -1346,6 +1495,11 @@ async function boot(){
     if(me.admin.role !== 'owner'){
       document.querySelector('.tab[data-pg="admins"]').style.display='none';
       document.querySelector('.tab[data-pg="settings"]').style.display='none';
+      if(!(me.admin.permissions||[]).includes('clients')){
+        document.querySelector('.tab[data-pg="clientmgr"]').style.display='none';
+      }
+    } else {
+      loadAdminRequests();
     }
   }catch(e){ location.href='/login'; return; }
   try{ const p = await api('/api/protocols'); PROTOCOLS = p.protocols||[]; MANUAL_META = p.manual||{}; }catch(e){}
@@ -1583,6 +1737,78 @@ async function createClient(uid){
 async function deleteClient(uid,cid){
   if(!confirm(t('این کلاینت حذف شود؟'))) return;
   try{await api(`/api/links/${uid}/clients/${cid}`,{method:'DELETE'});toast('کلاینت حذف شد');openClients(uid);loadLinks();}catch(e){toast(e.message,false)}
+}
+
+// ============================================================
+// Standalone Client Manager page (بخش جدای ساخت کلاینت)
+// ============================================================
+let CM_INBOUNDS = [];
+let CM_SELECTED_UID = '';
+async function loadClientManager(){
+  try{
+    const res = await api('/api/links');
+    CM_INBOUNDS = res.links || [];
+    const sel = $('cmInboundSelect');
+    const keep = CM_SELECTED_UID;
+    sel.innerHTML = '<option value="">— انتخاب کنید —</option>' + CM_INBOUNDS.map(l=>
+      `<option value="${l.uuid}">${escapeHtml(l.label||'Inbound')} · ${escapeHtml(protoLabel(l))} ${l.live_status==='live'?'(LIVE)':'(LINK-ONLY)'}</option>`
+    ).join('');
+    if(keep && CM_INBOUNDS.some(l=>l.uuid===keep)){
+      sel.value = keep;
+      loadClientManagerClients(keep);
+    } else {
+      $('cmInboundInfo').innerHTML = '';
+      $('cmBody').innerHTML = `<div class="empty"><i class="ti ti-router"></i>ابتدا یک اینباند را از بالا انتخاب کن</div>`;
+    }
+  }catch(e){ toast(e.message, false); }
+}
+async function loadClientManagerClients(uid){
+  CM_SELECTED_UID = uid || '';
+  if(!uid){
+    $('cmInboundInfo').innerHTML = '';
+    $('cmBody').innerHTML = `<div class="empty"><i class="ti ti-router"></i>ابتدا یک اینباند را از بالا انتخاب کن</div>`;
+    return;
+  }
+  const inbound = CM_INBOUNDS.find(x=>x.uuid===uid);
+  try{
+    const d = await api(`/api/links/${uid}/clients`);
+    const clients = d.clients || [];
+    $('cmInboundInfo').innerHTML = inbound ? `
+      <div class="client-hero" style="margin-top:12px"><div><b>${escapeHtml(inbound.label||'Inbound')}</b><small>${escapeHtml(protoLabel(inbound))} · ${escapeHtml(inbound.address||'')}:${inbound.port||443}</small></div><span class="badge ${inbound.live_status==='live'?'green':'red'}">${inbound.live_status==='live'?'LIVE':'LINK-ONLY'}</span></div>
+      ${inbound.live_status!=='live'?`<div class="notice danger-note" style="margin-top:10px">این اینباند فعلاً فقط لینک تولید می‌کند. برای Client واقعی، ابتدا یک ترکیب Live مثل VLESS + WS/TCP/XHTTP انتخاب کنید.</div>`:''}
+    ` : '';
+    $('cmBody').innerHTML = `
+      <div class="card" style="padding:16px;margin-bottom:14px">
+        <div class="client-create">
+          <div class="grp"><label>نام کلاینت</label><input id="cmClientName" placeholder="مثلاً iPhone · User 01"></div>
+          <div class="row2">
+            <div class="grp"><label>حجم (GB، خالی = والد)</label><input id="cmClientLimit" type="number" min="0" placeholder="0"></div>
+            <div class="grp"><label>انقضا (روز، 0 = والد)</label><input id="cmClientDays" type="number" min="0" placeholder="0"></div>
+          </div>
+          <button class="btn primary" style="width:100%" onclick="createClientMgr('${uid}')"><i class="ti ti-user-plus"></i>ساخت کلاینت واقعی</button>
+        </div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="panel-head" style="padding:0 0 12px;border:0"><div><b>کلاینت‌های این اینباند</b><small>${clients.length} کلاینت</small></div></div>
+        <div class="client-list">${clients.length ? clients.map(c=>`<article class="client-row"><div class="client-avatar"><i class="ti ti-device-laptop"></i></div><div class="client-main"><b>${escapeHtml(c.label||'Client')}</b><small class="mono">${escapeHtml(c.uuid)}</small><div class="client-tags"><span>${c.active?'فعال':'خاموش'}</span><span>${fmtBytes(c.used_bytes||0)}${c.limit_bytes?' / '+fmtBytes(c.limit_bytes):''}</span><span>${c.expires_at?escapeHtml(c.expires_at.slice(0,10)):'∞'}</span></div></div><div class="client-actions"><button class="iconbtn" title="کپی VLESS" onclick="copyText(${JSON.stringify(c.vless_full||'')})"><i class="ti ti-copy"></i></button><button class="iconbtn" title="حذف" onclick="deleteClientMgr('${uid}','${c.uuid}')"><i class="ti ti-trash" style="color:var(--bad)"></i></button></div></article>`).join('') : '<div class="empty-client">هنوز کلاینتی برای این اینباند ساخته نشده.</div>'}</div>
+      </div>
+    `;
+  }catch(e){ toast(e.message, false); }
+}
+async function createClientMgr(uid){
+  const label = $('cmClientName').value.trim();
+  const limit = Number($('cmClientLimit').value) || 0;
+  const days = Number($('cmClientDays').value) || 0;
+  try{
+    await api(`/api/links/${uid}/clients`, {method:'POST', body: JSON.stringify({label, limit_bytes: limit ? limit*1024*1024*1024 : 0, expires_days: days})});
+    toast('کلاینت واقعی ساخته شد ✓');
+    loadClientManagerClients(uid);
+  }catch(e){ toast(e.message, false); }
+}
+async function deleteClientMgr(uid, cid){
+  if(!confirm(t('این کلاینت حذف شود؟'))) return;
+  try{ await api(`/api/links/${uid}/clients/${cid}`, {method:'DELETE'}); toast('کلاینت حذف شد'); loadClientManagerClients(uid); }
+  catch(e){ toast(e.message, false); }
 }
 async function copyText(v){try{await navigator.clipboard.writeText(v);toast('کپی شد ✓')}catch(e){prompt('کپی کنید:',v)}}
 
@@ -1989,7 +2215,7 @@ async function loadReports(){
 // ============================================================
 // ADMINS
 // ============================================================
-const ADMIN_PERM_LABELS = {dashboard:'داشبورد',inbounds:'اینباند و کلاینت',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'};
+const ADMIN_PERM_LABELS = {dashboard:'داشبورد',inbounds:'اینباند و کلاینت',clients:'ساخت کلاینت (بخش جدا)',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'};
 async function loadAdmins(){
   try{
     const res = await api('/api/admins');
@@ -2036,13 +2262,13 @@ function openAdminDrawer(){
   openDrawer('ادمین جدید', `
     <div class="grp"><label>نام کاربری</label><input id="aUser"></div>
     <div class="grp"><label>رمز عبور</label><input type="password" id="aPass"></div>
-    <div class="perm-grid">${Object.entries({dashboard:'داشبورد',inbounds:'ساخت و مدیریت اینباند',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'}).map(([k,v])=>`<label class="perm-item"><input type="checkbox" data-perm="${k}" ${['dashboard','inbounds','subscriptions'].includes(k)?'checked':''}>${v}</label>`).join('')}</div>
+    <div class="perm-grid">${Object.entries({dashboard:'داشبورد',inbounds:'ساخت و مدیریت اینباند',clients:'ساخت کلاینت (بخش جدا)',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'}).map(([k,v])=>`<label class="perm-item"><input type="checkbox" data-perm="${k}" ${['dashboard','inbounds','subscriptions'].includes(k)?'checked':''}>${v}</label>`).join('')}</div>
   `, `<button class="btn primary" style="flex:1" onclick="submitAdmin()"><i class="ti ti-device-floppy"></i>ساخت</button>`);
 }
 function editAdmin(id){
   const a = ADMIN_CACHE.find(x=>x.id===id); if(!a || a.role==='owner') return;
-  const perms=['dashboard','inbounds','subscriptions','categories','plans','reports','messages','bot','admins','settings'];
-  const labels={dashboard:'داشبورد',inbounds:'اینباند و کلاینت',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'};
+  const perms=['dashboard','inbounds','clients','subscriptions','categories','plans','reports','messages','bot','admins','settings'];
+  const labels={dashboard:'داشبورد',inbounds:'اینباند و کلاینت',clients:'ساخت کلاینت (بخش جدا)',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'};
   openDrawer('ویرایش ادمین', `
     <div class="grp"><label>نام کاربری</label><input id="eUser" value="${escapeHtml(a.username||'')}"></div>
     <div class="grp"><label>رمز جدید <small>(اختیاری)</small></label><input type="password" id="ePass" placeholder="بدون تغییر خالی بگذار"></div>
@@ -2064,6 +2290,83 @@ async function toggleAdmin(id, active){
 async function deleteAdmin(id){
   if(!confirm(t('این ادمین حذف شود؟'))) return;
   try{ await api(`/api/admins/${id}`, {method:'DELETE'}); toast('حذف شد'); loadAdmins(); }
+  catch(e){ toast(e.message, false); }
+}
+
+// ============================================================
+// Admin registration requests
+// ============================================================
+let ADMIN_REQ_CACHE = [];
+async function loadAdminRequests(){
+  try{
+    const res = await api('/api/admin-requests');
+    ADMIN_REQ_CACHE = res.requests || [];
+    const card = $('adminReqCard');
+    const pending = ADMIN_REQ_CACHE.filter(r=>r.status==='pending');
+    $('adminReqBadge').textContent = pending.length + ' درخواست';
+    if(!ADMIN_REQ_CACHE.length){ card.style.display='none'; return; }
+    card.style.display = '';
+    const rows = [...pending, ...ADMIN_REQ_CACHE.filter(r=>r.status!=='pending')].slice(0, 30);
+    $('adminReqBody').innerHTML = rows.length ? rows.map(r=>{
+      const date = r.created_at ? r.created_at.slice(0,16).replace('T',' ') : '';
+      let statusHtml = '';
+      let actions = '';
+      if(r.status==='pending'){
+        actions = `<button class="btn primary" style="padding:8px 12px;font-size:11px" onclick="approveAdminReq('${r.id}')"><i class="ti ti-check"></i>تایید و ساخت ادمین</button>
+                   <button class="btn" style="padding:8px 12px;font-size:11px" onclick="rejectAdminReq('${r.id}')"><i class="ti ti-x"></i>رد</button>`;
+      } else {
+        statusHtml = `<span class="areq-status ${r.status}">${r.status==='approved'?'تایید شده':'رد شده'}</span>`;
+      }
+      return `<div class="areq-row">
+        <div class="areq-info">
+          <div class="areq-name">${escapeHtml(r.full_name||'-')}</div>
+          <div class="areq-meta"><span><i class="ti ti-brand-telegram"></i>@${escapeHtml(r.telegram_id||'-')}</span><span><i class="ti ti-clock"></i>${escapeHtml(date)}</span></div>
+          ${r.note ? `<div class="areq-note">${escapeHtml(r.note)}</div>` : ''}
+        </div>
+        <div class="areq-actions">${actions}${statusHtml}</div>
+      </div>`;
+    }).join('') : `<div class="areq-empty">درخواستی ثبت نشده است</div>`;
+  }catch(e){ /* silent: پنل قدیمی‌تر ممکنه این endpoint رو نداشته باشه */ }
+}
+function approveAdminReq(id){
+  const r = ADMIN_REQ_CACHE.find(x=>x.id===id); if(!r) return;
+  const suggestedUser = (r.telegram_id||'admin').replace(/[^A-Za-z0-9_]/g,'').toLowerCase() || 'admin';
+  openDrawer('تایید ادمین: ' + r.full_name, `
+    <div class="grp"><label>درخواست‌کننده</label><input value="${escapeHtml(r.full_name)} (@${escapeHtml(r.telegram_id)})" disabled></div>
+    <div class="grp"><label>نام کاربری</label><input id="arUser" value="${escapeHtml(suggestedUser)}"></div>
+    <div class="grp"><label>رمز عبور</label><input id="arPass" value="${Math.random().toString(36).slice(-8)}"></div>
+    <div class="grp"><label>شارژ اولیه (استارز)</label><input id="arCredit" type="number" min="0" value="0"></div>
+    <div class="perm-grid">${Object.entries({dashboard:'داشبورد',inbounds:'ساخت و مدیریت اینباند',clients:'ساخت کلاینت (بخش جدا)',subscriptions:'سابسکریپشن',categories:'دسته‌بندی',plans:'پلن فروش',reports:'گزارش‌ها',messages:'پیام‌ها و خطاها',bot:'ربات',admins:'مدیریت حساب',settings:'تنظیمات'}).map(([k,v])=>`<label class="perm-item"><input type="checkbox" data-arperm="${k}" ${['dashboard','inbounds','subscriptions'].includes(k)?'checked':''}>${v}</label>`).join('')}</div>
+  `, `<button class="btn primary" style="flex:1" onclick="confirmApproveAdminReq('${r.id}')"><i class="ti ti-check"></i>تایید و ساخت حساب</button>`);
+}
+async function confirmApproveAdminReq(id){
+  try{
+    const permissions=[...document.querySelectorAll('[data-arperm]:checked')].map(x=>x.dataset.arperm);
+    const body={
+      username: $('arUser').value.trim(),
+      password: $('arPass').value,
+      permissions,
+      credit_stars: Number($('arCredit').value)||0,
+    };
+    const res = await api(`/api/admin-requests/${id}/approve`, {method:'POST', body: JSON.stringify(body)});
+    closeDrawer();
+    const msg = res.delivery_message || '';
+    openDrawer('اطلاعات ورود ادمین', `
+      <p style="font-size:11.5px;color:var(--sub);line-height:1.9">این متن را برای <b>@${escapeHtml(res.telegram_id||'')}</b> در تلگرام ارسال کن:</p>
+      <textarea id="arDeliveryMsg" readonly style="width:100%;min-height:150px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font:inherit;line-height:1.9">${escapeHtml(msg)}</textarea>
+    `, `<button class="btn primary" style="flex:1" onclick="copyDeliveryMsg()"><i class="ti ti-copy"></i>کپی متن</button><button class="btn" style="flex:1" onclick="closeDrawer()">بستن</button>`);
+    loadAdmins(); loadAdminRequests();
+  }catch(e){ toast(e.message, false); }
+}
+function copyDeliveryMsg(){
+  const el = document.getElementById('arDeliveryMsg');
+  if(!el) return;
+  el.select();
+  try{ navigator.clipboard.writeText(el.value); toast('کپی شد ✓'); }catch(e){ document.execCommand('copy'); toast('کپی شد ✓'); }
+}
+async function rejectAdminReq(id){
+  if(!confirm('این درخواست رد شود؟')) return;
+  try{ await api(`/api/admin-requests/${id}/reject`, {method:'POST', body: JSON.stringify({})}); toast('درخواست رد شد'); loadAdminRequests(); }
   catch(e){ toast(e.message, false); }
 }
 
