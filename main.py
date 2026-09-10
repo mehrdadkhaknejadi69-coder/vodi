@@ -928,9 +928,23 @@ AUTH = {
 
 ADMINS: dict = {}
 
+# ============================================================
+# ADMIN REGISTRATION REQUESTS ("ثبت‌نام ادمینی" از صفحه لاگین)
+# ============================================================
+# کاربری که می‌خواهد ادمین شود، فقط نام و آیدی تلگرام خود را از صفحه
+# لاگین ارسال می‌کند. درخواست او اینجا به‌صورت pending ذخیره می‌شود تا
+# مالک پنل از بخش «مدیریت حساب‌ها» آن را ببیند، تصمیم بگیرد چه دسترسی‌ها
+# و چه رمز/نام‌کاربری‌ای به او بدهد، و در صورت تایید حساب ادمین واقعی
+# برایش ساخته شود.
+ADMIN_REQUESTS: dict = {}
+ADMIN_REQUEST_RATE: dict = {}  # ip -> last submit timestamp (ضد اسپم ساده)
+ADMIN_REQUEST_COOLDOWN_SECONDS = 60
+ADMIN_REQUESTS_LOCK = asyncio.Lock()
+
 ALL_PERMISSIONS = {
     "dashboard": "مشاهده داشبورد",
     "inbounds": "مدیریت اینباند و کلاینت",
+    "clients": "ساخت کلاینت (بخش جدا)",
     "subscriptions": "مدیریت سابسکریپشن",
     "categories": "مدیریت دسته‌بندی",
     "plans": "مدیریت پلن فروش",
@@ -1613,6 +1627,10 @@ async def load_state():
             data.get("admins", {})
         )
 
+        ADMIN_REQUESTS.update(
+            data.get("admin_requests", {})
+        )
+
         DAILY_STATS.update(
             data.get("daily_stats", {})
         )
@@ -1735,6 +1753,9 @@ async def save_state():
 
                 "admins":
                     dict(ADMINS),
+
+                "admin_requests":
+                    dict(ADMIN_REQUESTS),
 
                 "daily_stats":
                     dict(DAILY_STATS),
@@ -6697,6 +6718,9 @@ def _admin_public(admin_id: str, admin: dict) -> dict:
         "created_at": admin.get("created_at"),
         "last_login_at": admin.get("last_login_at"),
         "last_login_ip": admin.get("last_login_ip"),
+        "credit_stars": admin.get("credit_stars", 0),
+        "full_name": admin.get("full_name", ""),
+        "telegram_id": admin.get("telegram_id", ""),
     }
 
 
@@ -6832,6 +6856,201 @@ async def api_delete_admin(admin_id: str, token=Depends(require_owner)):
 
     log_activity("auth", f"ادمین «{admin.get('username')}» حذف شد", "warn")
 
+    return {"ok": True}
+
+
+# ============================================================
+# ADMIN REGISTRATION REQUESTS ("ثبت‌نام ادمینی" روی صفحه لاگین)
+# ============================================================
+
+def _admin_request_public(req_id: str, req: dict) -> dict:
+    return {
+        "id": req_id,
+        "full_name": req.get("full_name", ""),
+        "telegram_id": req.get("telegram_id", ""),
+        "note": req.get("note", ""),
+        "status": req.get("status", "pending"),
+        "created_at": req.get("created_at"),
+        "decided_at": req.get("decided_at"),
+        "admin_id": req.get("admin_id"),
+        "ip": req.get("ip"),
+    }
+
+
+@app.post("/api/admin-requests")
+async def api_submit_admin_request(request: Request):
+    """صفحه لاگین این را صدا می‌زند؛ نیازی به احراز هویت ندارد."""
+
+    ip = request.client.host if request.client else "unknown"
+
+    now = time.time()
+    last = ADMIN_REQUEST_RATE.get(ip, 0)
+    if now - last < ADMIN_REQUEST_COOLDOWN_SECONDS:
+        raise HTTPException(
+            status_code=429,
+            detail="کمی صبر کنید و دوباره تلاش کنید",
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="اطلاعات نامعتبر است")
+
+    full_name = str(body.get("full_name", "")).strip()
+    telegram_id = str(body.get("telegram_id", "")).strip().lstrip("@")
+    note = str(body.get("note", "")).strip()[:500]
+
+    if not full_name or len(full_name) < 3:
+        raise HTTPException(status_code=400, detail="نام و نام خانوادگی را کامل وارد کنید")
+    if not telegram_id or len(telegram_id) < 3:
+        raise HTTPException(status_code=400, detail="آیدی تلگرام معتبر وارد کنید")
+
+    ADMIN_REQUEST_RATE[ip] = now
+
+    async with ADMIN_REQUESTS_LOCK:
+        req_id = secrets.token_hex(6)
+        ADMIN_REQUESTS[req_id] = {
+            "full_name": full_name[:120],
+            "telegram_id": telegram_id[:120],
+            "note": note,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(),
+            "decided_at": None,
+            "admin_id": None,
+            "ip": ip,
+        }
+
+    await save_state()
+
+    log_activity(
+        "auth",
+        f"درخواست ثبت‌نام ادمین جدید از «{full_name}» (@{telegram_id})",
+        "info",
+    )
+
+    return {"ok": True, "id": req_id}
+
+
+@app.get("/api/admin-requests")
+async def api_list_admin_requests(token=Depends(require_owner)):
+    pending = sum(1 for r in ADMIN_REQUESTS.values() if r.get("status") == "pending")
+    requests_list = sorted(
+        (_admin_request_public(rid, r) for rid, r in ADMIN_REQUESTS.items()),
+        key=lambda r: r.get("created_at") or "",
+        reverse=True,
+    )
+    return {"ok": True, "requests": requests_list, "pending": pending}
+
+
+@app.post("/api/admin-requests/{req_id}/approve")
+async def api_approve_admin_request(req_id: str, request: Request, token=Depends(require_owner)):
+    """مالک اینجا تصمیم می‌گیرد چه نام‌کاربری/رمز/دسترسی/شارژی به درخواست‌کننده بدهد
+    و همان لحظه حساب ادمین واقعی برایش ساخته می‌شود."""
+
+    req = ADMIN_REQUESTS.get(req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    if req.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="این درخواست قبلاً بررسی شده است")
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="اطلاعات نامعتبر است")
+
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", "")).strip()
+
+    if not username or username.lower() == "owner":
+        raise HTTPException(status_code=400, detail="نام کاربری نامعتبر است")
+    if len(password) < LOGIN_MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"رمز عبور باید حداقل {LOGIN_MIN_PASSWORD_LENGTH} کاراکتر باشد",
+        )
+    if username.lower() == AUTH.get("username", DEFAULT_ADMIN_USERNAME).lower():
+        raise HTTPException(status_code=409, detail="این نام کاربری قبلاً استفاده شده است")
+    for a in ADMINS.values():
+        if a.get("username", "").lower() == username.lower():
+            raise HTTPException(status_code=409, detail="این نام کاربری قبلاً استفاده شده است")
+
+    credit_stars = safe_int(body.get("credit_stars"), default=0, minimum=0)
+
+    admin_id = secrets.token_hex(6)
+    ADMINS[admin_id] = {
+        "username": username,
+        "password_hash": hash_password(password),
+        "role": "admin",
+        "permissions": list(body.get("permissions") or {"dashboard", "inbounds", "subscriptions"}),
+        "active": True,
+        "created_at": datetime.now().isoformat(),
+        "last_login_at": None,
+        "last_login_ip": None,
+        "credit_stars": credit_stars,
+        "full_name": req.get("full_name", ""),
+        "telegram_id": req.get("telegram_id", ""),
+    }
+
+    req["status"] = "approved"
+    req["decided_at"] = datetime.now().isoformat()
+    req["admin_id"] = admin_id
+
+    await save_state()
+
+    log_activity(
+        "auth",
+        f"درخواست «{req.get('full_name')}» تایید و حساب ادمین «{username}» ساخته شد",
+        "ok",
+    )
+
+    delivery_message = (
+        f"سلام {req.get('full_name','')} عزیز 👋\n\n"
+        f"حساب ادمین شما در VodiWalker فعال شد.\n\n"
+        f"نام کاربری: {username}\n"
+        f"رمز عبور: {password}\n\n"
+        f"از طریق صفحه ورود پنل وارد شوید و رمز خود را در اولین فرصت تغییر دهید."
+    )
+
+    return {
+        "ok": True,
+        "admin": _admin_public(admin_id, ADMINS[admin_id]),
+        "telegram_id": req.get("telegram_id", ""),
+        "delivery_message": delivery_message,
+    }
+
+
+@app.post("/api/admin-requests/{req_id}/reject")
+async def api_reject_admin_request(req_id: str, request: Request, token=Depends(require_owner)):
+    req = ADMIN_REQUESTS.get(req_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    if req.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="این درخواست قبلاً بررسی شده است")
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    reason = str((body or {}).get("reason", "")).strip()[:300]
+
+    req["status"] = "rejected"
+    req["decided_at"] = datetime.now().isoformat()
+    req["note"] = reason or req.get("note", "")
+
+    await save_state()
+
+    log_activity("auth", f"درخواست ادمینی «{req.get('full_name')}» رد شد", "warn")
+
+    return {"ok": True}
+
+
+@app.delete("/api/admin-requests/{req_id}")
+async def api_delete_admin_request(req_id: str, token=Depends(require_owner)):
+    if req_id not in ADMIN_REQUESTS:
+        raise HTTPException(status_code=404, detail="درخواست یافت نشد")
+    ADMIN_REQUESTS.pop(req_id, None)
+    await save_state()
     return {"ok": True}
 
 
